@@ -1,0 +1,214 @@
+name: EveDirector Programmatic R4 Text and Occlusion Verification
+
+on:
+  push:
+    paths:
+      - '.github/workflows/evedirector-programmatic-r4.yml'
+      - 'scripts/evedirector_text_layers_r4.py'
+      - 'scripts/evedirector_visual_probe.py'
+      - 'backlot/programmatic_review.py'
+      - 'backlot/ui/agent-review.js'
+      - 'backlot/ui/agent-review.css'
+      - 'tests/test_evedirector_text_layers_r4.py'
+      - 'tests/test_evedirector_text_review_api_r4.py'
+      - 'examples/native-video/**'
+      - 'remotion/**'
+  pull_request:
+    paths:
+      - '.github/workflows/evedirector-programmatic-r4.yml'
+      - 'scripts/evedirector_text_layers_r4.py'
+      - 'backlot/programmatic_review.py'
+      - 'backlot/ui/agent-review.js'
+      - 'backlot/ui/agent-review.css'
+      - 'tests/test_evedirector_text_layers_r4.py'
+      - 'tests/test_evedirector_text_review_api_r4.py'
+      - 'remotion/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  text-r4:
+    name: R0-R4 regressions, real glyphs, deletion/occlusion adversaries and L4
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install zero-key local tooling and fixed-family font
+        run: |
+          python -m pip install 'Pillow>=10' 'PyYAML>=6' 'fastapi>=0.110' 'uvicorn>=0.29' 'watchfiles>=0.21' 'pytest>=8' 'httpx>=0.27' 'pydantic>=2' 'jsonschema>=4' 'python-dotenv>=1' 'requests>=2'
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          test -f /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf
+      - name: R0 and R1 source-grounded regression
+        run: |
+          python -m unittest discover -s tests -p 'test_evedirector_programmatic.py' -v
+          python -m unittest discover -s tests -p 'test_evedirector_remotion_bridge.py' -v
+      - name: L4, R2, R3 and R4 regression and security tests
+        run: |
+          python -m pytest -q \
+            tests/test_backlot_agent_review.py \
+            tests/test_evedirector_programmatic_review_r2.py \
+            tests/test_evedirector_visual_probe_r3.py \
+            tests/test_evedirector_visual_review_api_r3.py \
+            tests/test_evedirector_text_layers_r4.py \
+            tests/test_evedirector_text_review_api_r4.py
+      - name: Verify L4 UI JS is parseable
+        run: node --input-type=module --check < backlot/ui/agent-review.js
+      - name: Generate R1 source-pinned props and interpolation controls
+        run: |
+          python scripts/evedirector_remotion_bridge.py export \
+            --plan examples/native-video/program.json \
+            --source examples/native-video/source/README.md \
+            --props generated/remotion-props.json \
+            --receipt generated/remotion-bridge-receipt.json
+          python scripts/evedirector_remotion_bridge.py verify \
+            --plan examples/native-video/program.json \
+            --source examples/native-video/source/README.md \
+            --props generated/remotion-props.json \
+            --receipt generated/remotion-bridge-receipt.json
+          python scripts/evedirector_r1_vectors.py
+      - name: Install Remotion
+        working-directory: remotion
+        run: npm install --no-audit --no-fund
+      - name: Typecheck and verify 175 independent Python/TS vectors
+        working-directory: remotion
+        run: |
+          ./node_modules/.bin/tsc --target ES2020 --module commonjs --strict --skipLibCheck \
+            --outDir /tmp/evedirector-r4-core src/SceneProgramCore.ts
+          node tests/test_core.cjs /tmp/evedirector-r4-core/SceneProgramCore.js \
+            ../generated/remotion-props.json ../generated/interpolation_vectors.json
+          npm run typecheck
+      - name: Render real candidate under Chromium/Remotion
+        working-directory: remotion
+        run: |
+          ./node_modules/.bin/remotion browser ensure
+          npm run render
+      - name: Stage real candidate and evaluate R3 + R4 positive
+        run: |
+          mkdir -p projects/r4-ci-demo
+          python scripts/evedirector_review_stage.py stage \
+            --project-id r4-ci-demo --candidate-id ci_r4 \
+            --plan examples/native-video/program.json \
+            --source examples/native-video/source/README.md \
+            --styles-dir styles --video remotion/out/native-r1.mp4
+          python scripts/evedirector_visual_probe.py check --project-id r4-ci-demo --candidate-id ci_r4
+          python scripts/evedirector_visual_probe.py verify --project-id r4-ci-demo --candidate-id ci_r4
+          python scripts/evedirector_text_layers_r4.py check --project-id r4-ci-demo --candidate-id ci_r4
+          python scripts/evedirector_text_layers_r4.py verify --project-id r4-ci-demo --candidate-id ci_r4
+      - name: Stage same-spec erased-glyph MP4 and occlusion-order adversaries
+        run: |
+          ffmpeg -nostdin -hide_banner -loglevel error -y \
+            -i remotion/out/native-r1.mp4 \
+            -vf "drawbox=x=88:y=140:w=350:h=59:color=0x16243D:t=fill:enable='between(n,25,29)'" \
+            -an -c:v libx264 -pix_fmt yuv420p /tmp/r4-erased.mp4
+          python scripts/evedirector_review_stage.py stage \
+            --project-id r4-ci-demo --candidate-id ci_erased \
+            --plan examples/native-video/program.json \
+            --source examples/native-video/source/README.md \
+            --styles-dir styles --video /tmp/r4-erased.mp4
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=json.loads(Path('examples/native-video/program.json').read_text(encoding='utf-8'))
+          p['scenes'][0]['layers'].append({'id':'heading_occluder','kind':'rect',
+              'x':88,'y':140,'width':350,'height':59,'fill':'#16243D','opacity':1})
+          Path('/tmp/r4-occluded.json').write_text(json.dumps(p,ensure_ascii=False),encoding='utf-8')
+          PY
+          python scripts/evedirector_review_stage.py stage \
+            --project-id r4-ci-demo --candidate-id ci_wrong_z \
+            --plan /tmp/r4-occluded.json \
+            --source examples/native-video/source/README.md \
+            --styles-dir styles --video remotion/out/native-r1.mp4
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0,'scripts')
+          import evedirector_visual_probe as r3
+          import evedirector_text_layers_r4 as r4
+          import evedirector_review_stage as stage
+          projects=Path('projects')
+          for name,expect in [('ci_r4','PASS_SAMPLED_TEXT'),
+                              ('ci_erased','FAIL_SAMPLED_TEXT'),
+                              ('ci_wrong_z','FAIL_SAMPLED_TEXT')]:
+              item=stage.load_package(projects,'r4-ci-demo',name)
+              result=r4.inspect(item,name)
+              assert result['status']==expect,(name,result['status'])
+              r4.store(projects,'r4-ci-demo',name,result)
+              assert r4.load_report(projects,'r4-ci-demo',name,item)==result
+              print('R4_GLYPH_CONTROL',name,result['status'],result['ink_pixels'],result['occluded_bad_pixels'])
+          erased=stage.load_package(projects,'r4-ci-demo','ci_erased')
+          assert r3.inspect(erased,'ci_erased')['status']=='PASS_SAMPLED_GEOMETRY', 'R4 must catch a case R3 missed'
+          assert r4.inspect(erased,'ci_erased')['status']=='FAIL_SAMPLED_TEXT'
+          print('R4_ADVERSARIAL: PASS | geometry-only false negative detected by text oracle')
+          PY
+      - name: L4 API displays independent R3/R4 status and cannot Apply
+        run: |
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from backlot.server import create_app
+          with TestClient(create_app()) as client:
+              base='/api/project/r4-ci-demo/programmatic-review/'
+              for candidate,expected in [('ci_r4','PASS_SAMPLED_TEXT'),
+                  ('ci_erased','FAIL_SAMPLED_TEXT'),('ci_wrong_z','FAIL_SAMPLED_TEXT')]:
+                  res=client.get(base+candidate)
+                  assert res.status_code==200,(candidate,res.text)
+                  doc=res.json()
+                  assert doc['text_check']['status']==expected,(candidate,doc['text_check'])
+                  assert doc['text_check']['visual_equivalence_attested'] is False
+                  assert doc['authority']['apply_supported'] is False
+                  assert doc['text_check']['approved_for_publish'] is False
+                  assert client.post(base+candidate+'/apply',json={'confirmation':'APPLY '+candidate}).status_code==404
+              print('R4_L4: PASS | visible text and opaque occlusion evidence, zero Apply endpoints')
+          PY
+      - name: Upload R0-R4 source and inspected preview as one candidate archive
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evedirector-r4-text-and-occlusion-kit
+          retention-days: 7
+          path: |
+            LICENSE
+            README.md
+            docs/UPSTREAM_README.md
+            docs/EVEDIRECTOR_PROGRAMMATIC_VIDEO_R*_2026-11-15_zh-TW.md
+            scripts/evedirector_programmatic.py
+            scripts/evedirector_remotion_bridge.py
+            scripts/evedirector_r1_vectors.py
+            scripts/evedirector_review_stage.py
+            scripts/evedirector_visual_probe.py
+            scripts/evedirector_text_layers_r4.py
+            backlot/__init__.py
+            backlot/server.py
+            backlot/programmatic_review.py
+            backlot/ui/agent-review.css
+            backlot/ui/agent-review.js
+            backlot/ui/agent-review.html
+            backlot/ui/lib.js
+            remotion/README.md
+            remotion/package.json
+            remotion/tsconfig.json
+            remotion/src/**
+            remotion/tests/test_core.cjs
+            examples/native-video/**
+            styles/evemiss-native-demo.yaml
+            tests/test_evedirector_programmatic.py
+            tests/test_evedirector_remotion_bridge.py
+            tests/test_evedirector_programmatic_review_r2.py
+            tests/test_evedirector_visual_probe_r3.py
+            tests/test_evedirector_visual_review_api_r3.py
+            tests/test_evedirector_text_layers_r4.py
+            tests/test_evedirector_text_review_api_r4.py
+            tests/test_backlot_agent_review.py
+            projects/r4-ci-demo/programmatic_candidates/ci_r4/**
+            projects/r4-ci-demo/programmatic_text_checks/ci_r4/**
+            projects/r4-ci-demo/programmatic_text_checks/ci_erased/**
+            projects/r4-ci-demo/programmatic_text_checks/ci_wrong_z/**
+            projects/r4-ci-demo/programmatic_visual_checks/ci_r4/**
