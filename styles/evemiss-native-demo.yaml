@@ -1,0 +1,11 @@
+# Original R0 demonstration preset, not an imitation of any named studio or copyrighted work.
+identity:
+  name: "EveMissLab Native Demo"
+  category: motion-graphics
+visual_language:
+  color_palette:
+    primary: ["#59DBE5"]
+    accent: ["#F3BD5A"]
+    background: "#0B1324"
+    text: "#F1F5F9"
+    muted: "#94A3B8"
