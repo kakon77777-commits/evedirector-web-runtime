@@ -26,12 +26,9 @@ def _register_evedirector_extensions() -> None:
     from backlot.agent_edit import router as agent_edit_router
     from backlot.agent_review import router as agent_review_router
     from backlot.director import router as director_router
-    from backlot.programmatic_review import router as programmatic_review_router
 
     agent_review_router.include_router(agent_edit_router)
     agent_review_router.include_router(director_router)
-    # Separate read-only R2 candidate namespace; does not reuse L3 action routes.
-    agent_review_router.include_router(programmatic_review_router)
 
 
 _register_evedirector_extensions()
