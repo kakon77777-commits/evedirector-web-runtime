@@ -18,7 +18,7 @@ R0/R1 程式化影片則是獨立的 **JSON Scene Program** 和 Remotion 候選 
 |---|---|
 | scripts/evedirector_review_stage.py | 本機 CLI，從 R0 source/plan/style 與 R1 props/receipt 產生可重播的完整候選審核包，可附本地 MP4 |
 | backlot/programmatic_review.py | L4 唯讀 list/detail/media API；每次讀取重播 R0/R1 來源驗證、重算 SHA-256、限制檔案大小及路徑 |
-| backlot/__init__.py | 掛載新增 API router，不更改 L3 寫入端點 |
+| backlot/server.py | 在 FastAPI 主應用直接註冊三個唯讀 GET 端點，執行時才委派 R2 驗證模組；不更改 L3 寫入端點 |
 | backlot/ui/agent-review.js | 在現有 L4 工作台下方呈現預覽、clip timeline、逐行來源證據、雜湊與唯讀權限 |
 | backlot/ui/agent-review.css | 新增適應不同螢幕的影片審核區 |
 | tests/test_evedirector_programmatic_review_r2.py | 來源／計畫／風格／props／receipt／manifest／影片篡改、symlink、跨專案、無 Apply、H.264 及端點驗證 |
