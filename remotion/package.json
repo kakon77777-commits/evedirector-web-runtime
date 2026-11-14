@@ -1,0 +1,22 @@
+{
+  "name": "evedirector-programmatic-r1-remotion-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Isolated, candidate-only EveDirector scene-program Remotion composition",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts EveDirectorNativeR1 out/native-r1.mp4",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "remotion": "^4.0.0"
+  },
+  "devDependencies": {
+    "@remotion/cli": "^4.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.5.0"
+  }
+}
