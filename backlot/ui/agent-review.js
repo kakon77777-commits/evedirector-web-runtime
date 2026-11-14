@@ -290,7 +290,7 @@ async function chooseProgram(candidateId) {
   render();
   try {
     programDetailState = await getJSON(
-      \`/api/project/\${encodedProjectId}/programmatic-review/\${encodeURIComponent(candidateId)}\`
+      `/api/project/${encodedProjectId}/programmatic-review/${encodeURIComponent(candidateId)}`
     );
   } catch (error) {
     programErrorText = error.message || String(error);
@@ -333,17 +333,17 @@ function renderProgramDetail(detail) {
     el("div", { class: "programmatic-evidence" },
       el("h4", {}, "Source-grounded timeline and evidence"),
       ...(detail.scenes || []).map((scene) => el("article", { class: "programmatic-scene" },
-        el("b", {}, \`\${scene.id} · frame \${scene.from}–\${scene.from + scene.durationInFrames - 1}\`),
-        el("small", {}, \`\${scene.layers} layers · \${scene.duration_seconds.toFixed(2)}s · source line \${scene.source?.line_start ?? "?"}\`),
+        el("b", {}, `${scene.id} · frame ${scene.from}–${scene.from + scene.durationInFrames - 1}`),
+        el("small", {}, `${scene.layers} layers · ${scene.duration_seconds.toFixed(2)}s · source line ${scene.source?.line_start ?? "?"}`),
         el("p", {}, scene.source?.excerpt || scene.source?.source_contains || "—"),
-        el("code", {}, \`line sha256: \${scene.source?.logical_line_sha256 || "—"}\`),
+        el("code", {}, `line sha256: ${scene.source?.logical_line_sha256 || "—"}`),
       )),
       el("h4", {}, "Verifiable bundle hashes"),
       ...Object.entries(digest).map(([key, value]) =>
         el("div", { class: "programmatic-hash" },
           el("b", {}, key), el("code", {}, value))),
       el("p", { class: "programmatic-disclaimer" },
-        \`Authority: \${authority.mode || "read_only"} · canonical write: \${authority.canonical_spec_mutated === false ? "NO" : "UNVERIFIED"} · preview/program equivalence: NOT ATTESTED\`),
+        `Authority: ${authority.mode || "read_only"} · canonical write: ${authority.canonical_spec_mutated === false ? "NO" : "UNVERIFIED"} · preview/program equivalence: NOT ATTESTED`),
     ),
   );
 }
@@ -360,7 +360,7 @@ function renderProgrammatic() {
         candidates.length
           ? candidates.map((item) => el("button", {
               type: "button",
-              class: \`run-card\${item.candidate_id === selectedProgram ? " active" : ""}\`,
+              class: `run-card${item.candidate_id === selectedProgram ? " active" : ""}`,
               disabled: item.status === "integrity_failed",
               onclick: () => chooseProgram(item.candidate_id),
             },
@@ -368,7 +368,7 @@ function renderProgrammatic() {
             el("b", {}, item.candidate_id),
             el("small", {}, item.status === "integrity_failed"
               ? "Failed integrity check; not reviewable"
-              : \`\${item.scene_count} scenes · \${item.frames} frames · \${item.preview_available ? "MP4" : "evidence only"}\`),
+              : `${item.scene_count} scenes · ${item.frames} frames · ${item.preview_available ? "MP4" : "evidence only"}`),
           ))
           : el("div", { class: "empty" }, "No staged programmatic candidates in this project."),
       ),
