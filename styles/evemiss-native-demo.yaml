@@ -1,11 +1,72 @@
-# Original R0 demonstration preset, not an imitation of any named studio or copyrighted work.
+# Original EVEMISSLAB R0 palette. Compatible with the existing OpenMontage style-playbook schema.
+# This defines creative direction; it does not license third-party assets or make style ownership claims.
 identity:
   name: "EveMissLab Native Demo"
   category: motion-graphics
+  mood: precise, exploratory, analytical
+  pace: moderate
+  best_for: "Programmatic geometry, research explainers, AI-native motion experiments"
+
 visual_language:
   color_palette:
-    primary: ["#59DBE5"]
-    accent: ["#F3BD5A"]
+    primary: ["#59DBE5", "#278B9D"]
+    accent: ["#F3BD5A", "#D68B36"]
     background: "#0B1324"
     text: "#F1F5F9"
     muted: "#94A3B8"
+  composition: "Clear geometric hierarchy, one primary focus and visible supporting structures"
+  texture: "Clean vector solids with restrained mathematical linework"
+
+typography:
+  headings:
+    font: "Inter"
+    weight: 700
+    tracking: "-0.02em"
+  body:
+    font: "Inter"
+    weight: 400
+    line_height: 1.5
+  code:
+    font: "JetBrains Mono"
+    weight: 400
+  scale_system: major_third
+
+motion:
+  transitions: [fade, dissolve, slide-left]
+  animation_style: "Deterministic frame-keyed easing with readable scene changes"
+  pacing_rules:
+    min_scene_hold_seconds: 1.5
+    max_scene_hold_seconds: 12
+    text_card_hold_seconds: 3
+    stat_card_hold_seconds: 3
+    transition_duration_seconds: 0.4
+  entrance: "Measured fade and controlled translation"
+  exit: "Short fade to clear next composition"
+
+audio:
+  voice_style: "Clear, calm, evidence-oriented narration"
+  music_mood: "Minimal unobtrusive ambient electronic"
+  music_volume: 0.07
+  sfx_style: "Sparse unobtrusive scene cues"
+
+asset_generation:
+  image_prompt_prefix: "original geometric explainer, midnight-blue canvas, cyan and amber accents, "
+  image_negative_prompt: "copyrighted character likeness, borrowed logo, cluttered composition"
+  diagram_style: "Crisp geometric strokes and labeled visual relationships"
+  consistency_anchors:
+    - "Midnight-blue #0B1324 as the base"
+    - "Cyan #59DBE5 for structure"
+    - "Amber #F3BD5A for focal emphasis"
+    - "Source-grounded narration and deterministic geometry"
+
+quality_rules:
+  - "Keep source claims traceable to their original document line"
+  - "Do not generate model-controlled arbitrary Python or JavaScript for an R0 render"
+  - "Preserve motion readability and avoid more simultaneous layers than the schema permits"
+  - "Do not treat a rendered visual as scientific validation"
+
+chart_palette: ["#59DBE5", "#F3BD5A", "#278B9D", "#D68B36"]
+color_rules:
+  harmony_type: complementary
+  contrast_validation: true
+  colorblind_safe: false
