@@ -7,6 +7,7 @@ returns raw prompts, arbitrary files, or an L3 approval identity.
 from __future__ import annotations
 
 import asyncio
+from itertools import islice
 from pathlib import Path
 import sys
 from typing import Any
@@ -75,8 +76,8 @@ def _list(project_id: str) -> dict[str, Any]:
     except stage.ReviewPackageError as exc:
         raise HTTPException(status_code=403, detail="unsafe programmatic candidates directory") from exc
     results: list[dict[str, Any]] = []
-    # Bounded scan avoids attacker-controlled gigantic directories in UI listing.
-    for folder in sorted(root.iterdir(), key=lambda p: p.name, reverse=True):
+    # Cap BOTH enumeration and output; never sort unbounded local input.
+    for folder in sorted(islice(root.iterdir(), 512), key=lambda p: p.name, reverse=True):
         if len(results) >= 100:
             break
         if folder.name.startswith(".") or not stage.ID.fullmatch(folder.name):
