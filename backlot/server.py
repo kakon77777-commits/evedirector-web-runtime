@@ -153,10 +153,24 @@ async def _watch_projects() -> None:
 def create_app() -> FastAPI:
     app = FastAPI(title="Backlot", docs_url=None, redoc_url=None)
     app.include_router(agent_review_router)
-    # Resolve the router at app construction, not while backlot's package
-    # extension modules may still be initializing (cyclic-import startup).
-    from backlot import programmatic_review as preview_api
-    app.include_router(preview_api.router)
+
+    # R2 uses explicit app routes, independent of the L3 router bootstrap.
+    # Resolve the preview implementation only when GET is handled so
+    # module-level app creation never snapshots a half-initialized router.
+    @app.get("/api/project/{project_id}/programmatic-review")
+    async def programmatic_index(project_id: str) -> dict:
+        from backlot import programmatic_review as preview_api
+        return await preview_api.programmatic_review_index(project_id)
+
+    @app.get("/api/project/{project_id}/programmatic-review/{candidate_id}")
+    async def programmatic_detail(project_id: str, candidate_id: str) -> dict:
+        from backlot import programmatic_review as preview_api
+        return await preview_api.programmatic_review_detail(project_id, candidate_id)
+
+    @app.get("/api/project/{project_id}/programmatic-review/{candidate_id}/media")
+    async def programmatic_media(project_id: str, candidate_id: str) -> FileResponse:
+        from backlot import programmatic_review as preview_api
+        return await preview_api.programmatic_review_media(project_id, candidate_id)
 
     @app.on_event("startup")
     async def _startup() -> None:
