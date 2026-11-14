@@ -1,0 +1,85 @@
+name: EveDirector Programmatic Video R0
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/ai-native-programmatic-video-r0-*'
+    paths:
+      - '.github/workflows/evedirector-programmatic-r0.yml'
+      - 'scripts/evedirector_programmatic.py'
+      - 'tests/test_evedirector_programmatic.py'
+      - 'styles/evemiss-native-demo.yaml'
+      - 'examples/native-video/**'
+  pull_request:
+    paths:
+      - '.github/workflows/evedirector-programmatic-r0.yml'
+      - 'scripts/evedirector_programmatic.py'
+      - 'tests/test_evedirector_programmatic.py'
+      - 'styles/evemiss-native-demo.yaml'
+      - 'examples/native-video/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  zero-key-r0:
+    name: Contract + style schema + MP4 smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install R0 dependencies (no API keys)
+        run: python -m pip install 'Pillow>=10' 'PyYAML>=6' 'jsonschema>=4.20'
+      - name: Validate style against inherited OpenMontage playbook schema
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import jsonschema
+          import yaml
+          base = Path.cwd()
+          schema = json.loads((base / 'schemas/styles/playbook.schema.json').read_text(encoding='utf-8'))
+          preset = yaml.safe_load((base / 'styles/evemiss-native-demo.yaml').read_text(encoding='utf-8'))
+          jsonschema.validate(preset, schema)
+          print('STYLE_SCHEMA: PASS')
+          PY
+      - name: Run strict contract and negative tests
+        run: python -m unittest discover -s tests -p 'test_evedirector_programmatic.py' -v
+      - name: Validate demo source anchors
+        run: |
+          python scripts/evedirector_programmatic.py validate \
+            --plan examples/native-video/program.json \
+            --source examples/native-video/source/README.md
+      - name: Render H.264 with FFmpeg and verify with FFprobe
+        shell: bash
+        run: |
+          command -v ffmpeg
+          command -v ffprobe
+          mkdir -p /tmp/evedirector-r0
+          python scripts/evedirector_programmatic.py render \
+            --plan examples/native-video/program.json \
+            --source examples/native-video/source/README.md \
+            --output /tmp/evedirector-r0/native-r0.mp4 \
+            --manifest /tmp/evedirector-r0/receipt.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          r=json.loads(Path('/tmp/evedirector-r0/receipt.json').read_text(encoding='utf-8'))
+          assert r['render']['status']=='VERIFIED_LOCAL'
+          assert r['render']['ffprobe_stream']['codec_name']=='h264'
+          assert r['candidate_only'] and not r['canonical_spec_mutated']
+          print('R0_RENDER: PASS')
+          PY
+      - name: Upload demonstration (not a release or human approval)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evedirector-programmatic-r0-smoke
+          path: /tmp/evedirector-r0/
+          retention-days: 7
