@@ -209,6 +209,8 @@ jobs:
             tests/test_evedirector_text_review_api_r4.py
             tests/test_backlot_agent_review.py
             projects/r4-ci-demo/programmatic_candidates/ci_r4/**
+            projects/r4-ci-demo/programmatic_candidates/ci_erased/**
+            projects/r4-ci-demo/programmatic_candidates/ci_wrong_z/**
             projects/r4-ci-demo/programmatic_text_checks/ci_r4/**
             projects/r4-ci-demo/programmatic_text_checks/ci_erased/**
             projects/r4-ci-demo/programmatic_text_checks/ci_wrong_z/**
