@@ -215,13 +215,10 @@ def test_server_has_l4_and_r2_routes_without_apply(setup: dict):
     app = server.create_app()
     paths = {r.path for r in app.routes if hasattr(r, "path")}
     assert "/p/{project_id}/agent-review" in paths
-    assert "/api/project/{project_id}/programmatic-review" in paths, {
-        "app": sorted(paths),
-        "r2_module_routes": [r.path for r in review_r2.router.routes],
-        "server_alias_routes": [r.path for r in server.programmatic_review_router.routes],
-        "server_module": server.__file__,
-        "r2_module": review_r2.__file__,
-    }
+    assert "/api/project/{project_id}/programmatic-review" in paths, (
+        "actual_r2_paths=" + repr(sorted(p for p in paths if "programmatic" in p)) +
+        " | router_paths=" + repr([r.path for r in review_r2.router.routes])
+    )
     assert "/api/project/{project_id}/programmatic-review/{candidate_id}" in paths
     assert "/api/project/{project_id}/programmatic-review/{candidate_id}/media" in paths
     assert "/api/project/{project_id}/programmatic-review/{candidate_id}/apply" not in paths
