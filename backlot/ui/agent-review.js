@@ -15,6 +15,12 @@ let selectedRun = null;
 let loading = true;
 let errorText = "";
 
+// R2 is a separate read-only evidence/preview channel, NOT an L3 agent run.
+let programIndexState = null;
+let programDetailState = null;
+let selectedProgram = null;
+let programErrorText = "";
+
 function textValue(value) {
   if (value == null) return "—";
   if (typeof value === "string") return value;
@@ -39,6 +45,23 @@ async function loadIndex({ keepSelection = true } = {}) {
     detailState = await getJSON(`/api/project/${encodedProjectId}/agent-review/${encodeURIComponent(selectedRun)}`);
   } else {
     detailState = null;
+  }
+
+  // Optional R2 channel must never suppress a working L3/L4 review.
+  programErrorText = "";
+  try {
+    programIndexState = await getJSON(`/api/project/${encodedProjectId}/programmatic-review`);
+    const candidates = programIndexState.candidates || [];
+    const ids = new Set(candidates.filter((c) => c.status !== "integrity_failed").map((c) => c.candidate_id));
+    if (!keepSelection || !selectedProgram || !ids.has(selectedProgram)) {
+      selectedProgram = candidates.find((c) => ids.has(c.candidate_id))?.candidate_id || null;
+    }
+    programDetailState = selectedProgram
+      ? await getJSON(`/api/project/${encodedProjectId}/programmatic-review/${encodeURIComponent(selectedProgram)}`)
+      : null;
+  } catch (error) {
+    programErrorText = error.message || String(error);
+    programDetailState = null;
   }
 }
 
@@ -259,6 +282,103 @@ function renderRight(detail) {
   );
 }
 
+
+async function chooseProgram(candidateId) {
+  selectedProgram = candidateId;
+  programErrorText = "";
+  programDetailState = null;
+  render();
+  try {
+    programDetailState = await getJSON(
+      \`/api/project/\${encodedProjectId}/programmatic-review/\${encodeURIComponent(candidateId)}\`
+    );
+  } catch (error) {
+    programErrorText = error.message || String(error);
+  }
+  render();
+}
+
+function renderProgramDetail(detail) {
+  const timing = detail.timing || {};
+  const preview = detail.preview || {};
+  const digest = detail.digests || {};
+  const authority = detail.authority || {};
+  const player = preview.available && preview.media_url
+    ? el("video", {
+      class: "programmatic-player",
+      controls: "",
+      playsinline: "",
+      preload: "metadata",
+      src: preview.media_url,
+    })
+    : el("div", { class: "notice" },
+      "No verified local MP4 was staged. Source evidence is still available.");
+  return el("div", { class: "programmatic-detail" },
+    el("div", { class: "programmatic-title" },
+      el("div", {},
+        el("h3", {}, detail.title || "Programmatic candidate"),
+        el("small", {}, detail.candidate_id || ""),
+      ),
+      el("span", { class: "pill locked" }, "PREVIEW ONLY · NO APPLY"),
+    ),
+    el("p", { class: "programmatic-disclaimer" },
+      "R0/R1 data replay checked. Source authenticity, visual equivalence, copyright and publishing approval are NOT attested. Existing L3 review actions do not apply to these clips."),
+    player,
+    el("div", { class: "programmatic-metrics" },
+      metric("Clips", (detail.scenes || []).length),
+      metric("FPS", timing.fps),
+      metric("Frames", timing.frames),
+      metric("Seconds", timing.seconds?.toFixed(2) ?? "—"),
+    ),
+    el("div", { class: "programmatic-evidence" },
+      el("h4", {}, "Source-grounded timeline and evidence"),
+      ...(detail.scenes || []).map((scene) => el("article", { class: "programmatic-scene" },
+        el("b", {}, \`\${scene.id} · frame \${scene.from}–\${scene.from + scene.durationInFrames - 1}\`),
+        el("small", {}, \`\${scene.layers} layers · \${scene.duration_seconds.toFixed(2)}s · source line \${scene.source?.line_start ?? "?"}\`),
+        el("p", {}, scene.source?.excerpt || scene.source?.source_contains || "—"),
+        el("code", {}, \`line sha256: \${scene.source?.logical_line_sha256 || "—"}\`),
+      )),
+      el("h4", {}, "Verifiable bundle hashes"),
+      ...Object.entries(digest).map(([key, value]) =>
+        el("div", { class: "programmatic-hash" },
+          el("b", {}, key), el("code", {}, value))),
+      el("p", { class: "programmatic-disclaimer" },
+        \`Authority: \${authority.mode || "read_only"} · canonical write: \${authority.canonical_spec_mutated === false ? "NO" : "UNVERIFIED"} · preview/program equivalence: NOT ATTESTED\`),
+    ),
+  );
+}
+
+function renderProgrammatic() {
+  const candidates = programIndexState?.candidates || [];
+  return el("section", { class: "panel programmatic-panel" },
+    el("div", { class: "panel-head" },
+      el("h2", {}, "Programmatic Video · R2"),
+      el("span", { class: "pill locked" }, "READ-ONLY PREVIEW")),
+    programErrorText ? el("div", { class: "error" }, programErrorText) : null,
+    el("div", { class: "programmatic-workspace" },
+      el("aside", { class: "programmatic-list" },
+        candidates.length
+          ? candidates.map((item) => el("button", {
+              type: "button",
+              class: \`run-card\${item.candidate_id === selectedProgram ? " active" : ""}\`,
+              disabled: item.status === "integrity_failed",
+              onclick: () => chooseProgram(item.candidate_id),
+            },
+            el("span", { class: statusClass(item.status) }, item.status),
+            el("b", {}, item.candidate_id),
+            el("small", {}, item.status === "integrity_failed"
+              ? "Failed integrity check; not reviewable"
+              : \`\${item.scene_count} scenes · \${item.frames} frames · \${item.preview_available ? "MP4" : "evidence only"}\`),
+          ))
+          : el("div", { class: "empty" }, "No staged programmatic candidates in this project."),
+      ),
+      programDetailState
+        ? renderProgramDetail(programDetailState)
+        : el("div", { class: "empty" }, "Select a source-verified programmatic preview. No candidate can Apply a canonical L3 specification."),
+    ),
+  );
+}
+
 function render() {
   app.innerHTML = "";
   app.append(renderTopbar());
@@ -274,6 +394,7 @@ function render() {
     ? renderRight(detailState)
     : el("aside", { class: "panel right-panel empty" }, "No review detail available.");
   app.append(el("div", { class: "workspace" }, renderRuns(), center, right));
+  app.append(renderProgrammatic());
 }
 
 refresh({ keepSelection: false });
