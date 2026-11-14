@@ -1,0 +1,67 @@
+{
+  "schema": "evedirector.programmatic_video.v0.1",
+  "title": "EveDirector R6 安全字幕自動換行",
+  "style": "evemiss-native-demo",
+  "width": 640,
+  "height": 360,
+  "fps": 12,
+  "frames": 60,
+  "scenes": [
+    {
+      "id": "intro",
+      "start_frame": 0,
+      "end_frame": 30,
+      "source_contains": "AI 原生影片與繁體中文字幕 安全自動換行",
+      "layers": [
+        {
+          "id": "panel",
+          "kind": "rect",
+          "x": 12,
+          "y": 32,
+          "width": 616,
+          "height": 305,
+          "fill": "#16243D",
+          "opacity": 1
+        },
+        {
+          "id": "subtitle",
+          "kind": "text",
+          "x": 45,
+          "y": 178,
+          "text": "字幕",
+          "font_size": 38,
+          "font_profile": "noto-cjk-tc-v1",
+          "fill": "text"
+        }
+      ]
+    },
+    {
+      "id": "outro",
+      "start_frame": 30,
+      "end_frame": 60,
+      "source_contains": "繁體中文與 English subtitle 安全區",
+      "layers": [
+        {
+          "id": "panel2",
+          "kind": "rect",
+          "x": 12,
+          "y": 32,
+          "width": 616,
+          "height": 305,
+          "fill": "#16243D",
+          "opacity": 1
+        },
+        {
+          "id": "subtitle",
+          "kind": "text",
+          "x": 45,
+          "y": 178,
+          "text": "字幕",
+          "font_size": 38,
+          "font_profile": "noto-cjk-tc-v1",
+          "fill": "text"
+        }
+      ]
+    }
+  ]
+}

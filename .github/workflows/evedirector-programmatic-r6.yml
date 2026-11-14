@@ -1,0 +1,233 @@
+name: EveDirector R6 Pinned Subtitle Safe Layout (Candidate)
+
+on:
+  push:
+    paths:
+      - '.github/workflows/evedirector-programmatic-r6.yml'
+      - 'scripts/evedirector_subtitle_layout_r6.py'
+      - 'tests/test_evedirector_subtitle_layout_r6.py'
+      - 'tests/test_evedirector_subtitle_review_api_r6.py'
+      - 'backlot/programmatic_review.py'
+      - 'backlot/ui/agent-review.js'
+      - 'examples/native-video/r6-*'
+      - 'examples/native-video/source/r6-*'
+  pull_request:
+    paths:
+      - '.github/workflows/evedirector-programmatic-r6.yml'
+      - 'scripts/evedirector_subtitle_layout_r6.py'
+      - 'tests/test_evedirector_subtitle_layout_r6.py'
+      - 'tests/test_evedirector_subtitle_review_api_r6.py'
+      - 'backlot/programmatic_review.py'
+      - 'backlot/ui/agent-review.js'
+      - 'examples/native-video/r6-*'
+      - 'examples/native-video/source/r6-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  safe-layout-r6:
+    name: R0-R6 regressions, font-pin, Remotion, R5 glyph and L4 read-only
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install zero-key dependencies + system font (never publish font files)
+        run: |
+          python -m pip install 'Pillow>=10' 'PyYAML>=6' 'fonttools>=4.55' 'fastapi>=0.110' 'uvicorn>=0.29' 'watchfiles>=0.21' 'pytest>=8' 'httpx>=0.27' 'pydantic>=2' 'jsonschema>=4' 'python-dotenv>=1' 'requests>=2'
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-noto-cjk fontconfig
+          fc-match -f '%{family} %{index}\n' 'Noto Sans CJK TC'
+      - name: R0/R1 and all R2-R6 Python regressions
+        run: |
+          python -m unittest discover -s tests -p 'test_evedirector_programmatic.py' -v
+          python -m unittest discover -s tests -p 'test_evedirector_remotion_bridge.py' -v
+          python -m pytest -q \
+            tests/test_backlot_agent_review.py \
+            tests/test_evedirector_programmatic_review_r2.py \
+            tests/test_evedirector_visual_probe_r3.py \
+            tests/test_evedirector_visual_review_api_r3.py \
+            tests/test_evedirector_text_layers_r4.py \
+            tests/test_evedirector_text_review_api_r4.py \
+            tests/test_evedirector_multilang_r5.py \
+            tests/test_evedirector_multilang_review_api_r5.py \
+            tests/test_evedirector_subtitle_layout_r6.py \
+            tests/test_evedirector_subtitle_review_api_r6.py
+      - name: Validate L4 JavaScript parsing
+        run: node --input-type=module --check < backlot/ui/agent-review.js
+      - name: Compile & replay source-grounded R6 safe layout
+        run: |
+          python scripts/evedirector_subtitle_layout_r6.py compile \
+            --base examples/native-video/r6-layout-base.json \
+            --layout examples/native-video/r6-layout-request.json \
+            --source examples/native-video/source/r6-subtitle-layout.md \
+            --output generated/r6-plan.json --receipt generated/r6-layout-receipt.json
+          python scripts/evedirector_subtitle_layout_r6.py verify \
+            --base examples/native-video/r6-layout-base.json \
+            --layout examples/native-video/r6-layout-request.json \
+            --source examples/native-video/source/r6-subtitle-layout.md \
+            --output generated/r6-plan.json --receipt generated/r6-layout-receipt.json
+          python scripts/evedirector_remotion_bridge.py export \
+            --plan generated/r6-plan.json \
+            --source examples/native-video/source/r6-subtitle-layout.md \
+            --props generated/remotion-props.json --receipt generated/remotion-bridge-receipt.json
+          python scripts/evedirector_remotion_bridge.py verify \
+            --plan generated/r6-plan.json \
+            --source examples/native-video/source/r6-subtitle-layout.md \
+            --props generated/remotion-props.json --receipt generated/remotion-bridge-receipt.json
+          python scripts/evedirector_r1_vectors.py
+      - name: Install R1-R6 Remotion toolchain
+        working-directory: remotion
+        run: npm install --no-audit --no-fund
+      - name: TypeScript contracts, legacy 175 vectors, full typecheck
+        working-directory: remotion
+        run: |
+          mkdir -p /tmp/r6-core
+          ./node_modules/.bin/tsc --target ES2020 --module commonjs --strict --skipLibCheck \
+            --outDir /tmp/r6-core src/SceneProgramCore.ts
+          node tests/test_r5_fonts.cjs /tmp/r6-core/SceneProgramCore.js ../generated/remotion-props.json
+          npm run typecheck
+          python ../scripts/evedirector_remotion_bridge.py export \
+            --plan ../examples/native-video/program.json \
+            --source ../examples/native-video/source/README.md \
+            --props ../generated/legacy-r1-props.json --receipt ../generated/legacy-r1-receipt.json
+          node tests/test_core.cjs /tmp/r6-core/SceneProgramCore.js \
+            ../generated/legacy-r1-props.json ../generated/interpolation_vectors.json
+      - name: Actually render R6 explicit-layout Chinese/English MP4
+        working-directory: remotion
+        run: |
+          ./node_modules/.bin/remotion browser ensure
+          npm run render
+      - name: Stage real candidate, replay font/layout, inspect actual R5 glyphs
+        run: |
+          mkdir -p projects/r6-ci-demo
+          python scripts/evedirector_review_stage.py stage \
+            --project-id r6-ci-demo --candidate-id ci_r6 \
+            --plan generated/r6-plan.json \
+            --source examples/native-video/source/r6-subtitle-layout.md \
+            --styles-dir styles --video remotion/out/native-r1.mp4
+          python scripts/evedirector_subtitle_layout_r6.py stage \
+            --project-id r6-ci-demo --candidate-id ci_r6 \
+            --base examples/native-video/r6-layout-base.json \
+            --layout examples/native-video/r6-layout-request.json
+          python scripts/evedirector_subtitle_layout_r6.py replay \
+            --project-id r6-ci-demo --candidate-id ci_r6
+          python scripts/evedirector_multilang_probe_r5.py check \
+            --project-id r6-ci-demo --candidate-id ci_r6
+          python scripts/evedirector_multilang_probe_r5.py verify \
+            --project-id r6-ci-demo --candidate-id ci_r6
+      - name: Layout tamper and black-video adversarial tests
+        run: |
+          python - <<'PY'
+          import copy,json,sys
+          from pathlib import Path
+          sys.path.insert(0,'scripts')
+          import evedirector_subtitle_layout_r6 as r6
+          import evedirector_review_stage as stage
+          import evedirector_multilang_probe_r5 as r5
+          root=Path('projects')
+          plan=stage.bridge.read_strict_json(Path('generated/r6-plan.json'))
+          source=Path('examples/native-video/source/r6-subtitle-layout.md').read_bytes()
+          req=stage.bridge.read_strict_json(Path('examples/native-video/r6-layout-request.json'))
+          base=stage.bridge.read_strict_json(Path('examples/native-video/r6-layout-base.json'))
+          tampered=copy.deepcopy(req); tampered['font']['sha256']='0'*64
+          try: r6.compile_layout(base,source,Path('styles'),tampered)
+          except r6.SubtitleLayoutError: pass
+          else: raise AssertionError('R6 accepted forged font fingerprint')
+          plan['scenes'][0]['layers'][1]['x'] += 45
+          Path('/tmp/r6-shifted.json').write_bytes(stage.canonical(plan))
+          stage.stage(root,'r6-ci-demo','ci_shifted',Path('/tmp/r6-shifted.json'),
+                      Path('examples/native-video/source/r6-subtitle-layout.md'),Path('styles'),
+                      Path('remotion/out/native-r1.mp4'))
+          item=stage.load_package(root,'r6-ci-demo','ci_shifted')
+          try: r6.store(root,'r6-ci-demo','ci_shifted',item,base,req)
+          except r6.SubtitleLayoutError: pass
+          else: raise AssertionError('R6 accepted shifted subtitle as matching its signed layout')
+          print('R6_ADVERSARIAL: wrong font and altered subtitle geometry rejected')
+          PY
+          ffmpeg -nostdin -v error -y -f lavfi -i color=c=black:s=640x360:r=12 \
+            -frames:v 60 -c:v libx264 -pix_fmt yuv420p /tmp/r6-black.mp4
+          python scripts/evedirector_review_stage.py stage \
+            --project-id r6-ci-demo --candidate-id ci_black \
+            --plan generated/r6-plan.json \
+            --source examples/native-video/source/r6-subtitle-layout.md \
+            --styles-dir styles --video /tmp/r6-black.mp4
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0,'scripts')
+          import evedirector_review_stage as stage
+          import evedirector_multilang_probe_r5 as r5
+          item=stage.load_package(Path('projects'),'r6-ci-demo','ci_black')
+          report=r5.inspect(item,'ci_black')
+          assert report['status']=='FAIL_SAMPLED_MULTILINGUAL_TEXT',report['status']
+          print('R6_BLACK_VIDEO: R5 glyph verifier correctly FAILed')
+          PY
+      - name: Backlot L4 read-only R6 + R5 status and forbidden Apply
+        run: |
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from backlot.server import create_app
+          with TestClient(create_app()) as client:
+              url='/api/project/r6-ci-demo/programmatic-review/ci_r6'
+              res=client.get(url)
+              assert res.status_code==200,res.text
+              val=res.json()
+              assert val['layout_check']['status']=='PASS_SAFE_LAYOUT_CONTRACT'
+              assert val['multilingual_check']['status']=='PASS_SAMPLED_MULTILINGUAL_TEXT',val['multilingual_check']['status']
+              assert val['layout_check']['line_count']==4
+              assert val['layout_check']['approved_for_publish'] is False
+              assert val['authority']['apply_supported'] is False
+              assert client.post(url+'/apply',json={'confirmation':'APPLY ci_r6'}).status_code==404
+              print('R6_L4: pinned layout and sampled glyph PASS independently; no Apply')
+          PY
+      - name: Upload one candidate ZIP with source and evidence, not font files
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evedirector-r6-safe-layout-kit
+          retention-days: 7
+          path: |
+            LICENSE
+            README.md
+            docs/UPSTREAM_README.md
+            docs/EVEDIRECTOR_PROGRAMMATIC_VIDEO_R*_2026-11-15_zh-TW.md
+            scripts/evedirector_programmatic.py
+            scripts/evedirector_remotion_bridge.py
+            scripts/evedirector_r1_vectors.py
+            scripts/evedirector_review_stage.py
+            scripts/evedirector_visual_probe.py
+            scripts/evedirector_text_layers_r4.py
+            scripts/evedirector_multilang_probe_r5.py
+            scripts/evedirector_subtitle_layout_r6.py
+            backlot/programmatic_review.py
+            backlot/server.py
+            backlot/ui/agent-review.js
+            backlot/ui/agent-review.css
+            backlot/ui/agent-review.html
+            remotion/README.md
+            remotion/package.json
+            remotion/tsconfig.json
+            remotion/src/**
+            remotion/tests/test_core.cjs
+            remotion/tests/test_r5_fonts.cjs
+            tests/test_evedirector_*.py
+            tests/test_backlot_agent_review.py
+            .github/workflows/evedirector-programmatic-r6.yml
+            examples/native-video/**
+            styles/evemiss-native-demo.yaml
+            generated/r6-plan.json
+            generated/r6-layout-receipt.json
+            generated/remotion-props.json
+            generated/remotion-bridge-receipt.json
+            generated/interpolation_vectors.json
+            projects/r6-ci-demo/programmatic_candidates/**
+            projects/r6-ci-demo/programmatic_layout_checks/**
+            projects/r6-ci-demo/programmatic_multilang_checks/**

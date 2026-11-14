@@ -1,0 +1,28 @@
+{
+  "schema": "evedirector.subtitle_layout_request.v0.1",
+  "font": {
+    "profile": "noto-cjk-tc-v1",
+    "sha256": "b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a",
+    "face_index": 3
+  },
+  "safe_area": {
+    "left": 36,
+    "right": 36,
+    "top": 36,
+    "bottom": 30
+  },
+  "cues": [
+    {
+      "scene_id": "intro",
+      "layer_id": "subtitle",
+      "text": "AI 原生影片與繁體中文字幕 安全自動換行",
+      "placement": "middle"
+    },
+    {
+      "scene_id": "outro",
+      "layer_id": "subtitle",
+      "text": "繁體中文與 English subtitle 安全區",
+      "placement": "lower_third"
+    }
+  ]
+}

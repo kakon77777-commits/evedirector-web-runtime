@@ -27,6 +27,7 @@ import evedirector_remotion_bridge as bridge  # noqa: E402
 import evedirector_visual_probe as visual_r3  # noqa: E402
 import evedirector_text_layers_r4 as text_r4  # noqa: E402
 import evedirector_multilang_probe_r5 as multilang_r5  # noqa: E402
+import evedirector_subtitle_layout_r6 as layout_r6  # noqa: E402
 
 router = APIRouter()
 READ_ONLY = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
@@ -212,6 +213,32 @@ def _detail(project_id: str, candidate_id: str) -> dict[str, Any]:
             "visual_equivalence_attested": False, "approved_for_publish": False,
         }
     )
+    try:
+        layout_report = layout_r6.load_report(l4.PROJECTS_DIR, project_id, candidate_id, item)
+    except (layout_r6.SubtitleLayoutError, multilang_r5.MultilangProbeError,
+            stage.ReviewPackageError, bridge.r0.ProgramError,
+            OSError, ValueError, TypeError, KeyError) as exc:
+        raise HTTPException(status_code=409, detail="R6 subtitle layout record failed integrity/replay") from exc
+    layout_check = (
+        {
+            "status": layout_report["status"],
+            "font": layout_report["font"],
+            "safe_area": layout_report["safe_area"],
+            "line_count": layout_report["line_count"],
+            "lines": layout_report["lines"],
+            "scope": layout_report["scope"],
+            "excluded": layout_report["excluded"],
+            "compiled_program_sha256": layout_report["compiled_program_sha256"],
+            "candidate_only": True,
+            "unsigned_local_record": True,
+            "visual_equivalence_attested": False,
+            "approved_for_publish": False,
+        } if layout_report is not None else {
+            "status": "NOT_RUN", "candidate_only": True,
+            "unsigned_local_record": True,
+            "visual_equivalence_attested": False, "approved_for_publish": False,
+        }
+    )
     return {
         "schema": "evedirector.programmatic_review_api.v0.1",
         "project_id": project_id,
@@ -251,6 +278,7 @@ def _detail(project_id: str, candidate_id: str) -> dict[str, Any]:
         "visual_check": visual_check,
         "text_check": text_check,
         "multilingual_check": multilingual_check,
+        "layout_check": layout_check,
     }
 
 
