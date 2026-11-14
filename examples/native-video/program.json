@@ -1,0 +1,36 @@
+{
+  "schema": "evedirector.programmatic_video.v0.1",
+  "title": "EveDirector — Native Code to Film",
+  "style": "evemiss-native-demo",
+  "width": 640,
+  "height": 360,
+  "fps": 12,
+  "frames": 60,
+  "scenes": [
+    {
+      "id": "intro",
+      "start_frame": 0,
+      "end_frame": 30,
+      "source_contains": "produces motion from typed geometry and keyframes",
+      "layers": [
+        {"id": "halo", "kind": "ellipse", "x": 420, "y": 60, "width": 130, "height": 130, "fill": "primary", "opacity": 0.34, "keyframes": {"x": [{"frame": 0, "value": 620}, {"frame": 29, "value": 420}]}},
+        {"id": "panel", "kind": "rect", "x": 52, "y": 125, "width": 545, "height": 118, "fill": "#16243D", "opacity": 0.98, "keyframes": {"x": [{"frame": 0, "value": -545}, {"frame": 15, "value": 52}]}},
+        {"id": "heading", "kind": "text", "x": 88, "y": 141, "text": "EVEDIRECTOR", "font_size": 46, "fill": "text", "keyframes": {"opacity": [{"frame": 0, "value": 0}, {"frame": 17, "value": 0}, {"frame": 29, "value": 1}]}},
+        {"id": "subtitle", "kind": "text", "x": 89, "y": 209, "text": "Native scene program", "font_size": 20, "fill": "accent", "keyframes": {"opacity": [{"frame": 0, "value": 0}, {"frame": 22, "value": 0}, {"frame": 29, "value": 1}]}}
+      ]
+    },
+    {
+      "id": "outro",
+      "start_frame": 30,
+      "end_frame": 60,
+      "source_contains": "entirely local and does not need a generative-video API",
+      "layers": [
+        {"id": "beam", "kind": "rect", "x": 70, "y": 75, "width": 15, "height": 210, "fill": "primary", "keyframes": {"x": [{"frame": 0, "value": 30}, {"frame": 29, "value": 70}]}},
+        {"id": "line", "kind": "rect", "x": 108, "y": 166, "width": 490, "height": 4, "fill": "accent", "keyframes": {"width": [{"frame": 0, "value": 1}, {"frame": 29, "value": 490}]}},
+        {"id": "message", "kind": "text", "x": 108, "y": 92, "text": "CODE -> FRAMES", "font_size": 38, "fill": "text", "keyframes": {"x": [{"frame": 0, "value": 670}, {"frame": 17, "value": 108}]}},
+        {"id": "message2", "kind": "text", "x": 108, "y": 197, "text": "FRAMES -> MP4", "font_size": 26, "fill": "primary", "keyframes": {"opacity": [{"frame": 0, "value": 0}, {"frame": 16, "value": 0}, {"frame": 29, "value": 1}]}},
+        {"id": "tag", "kind": "text", "x": 108, "y": 250, "text": "No cloud video API", "font_size": 19, "fill": "muted"}
+      ]
+    }
+  ]
+}
