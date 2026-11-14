@@ -141,7 +141,8 @@ jobs:
               item=stage.load_package(projects,'r4-ci-demo',name)
               result=r4.inspect(item,name)
               assert result['status']==expect,(name,result['status'])
-              r4.store(projects,'r4-ci-demo',name,result)
+              if name != 'ci_r4':
+                  r4.store(projects,'r4-ci-demo',name,result)
               assert r4.load_report(projects,'r4-ci-demo',name,item)==result
               print('R4_GLYPH_CONTROL',name,result['status'],result['ink_pixels'],result['occluded_bad_pixels'])
           erased=stage.load_package(projects,'r4-ci-demo','ci_erased')
