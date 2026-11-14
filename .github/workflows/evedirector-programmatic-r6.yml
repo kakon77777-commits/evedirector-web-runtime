@@ -92,8 +92,22 @@ jobs:
           mkdir -p /tmp/r6-core
           ./node_modules/.bin/tsc --target ES2020 --module commonjs --strict --skipLibCheck \
             --outDir /tmp/r6-core src/SceneProgramCore.ts
-          node tests/test_r5_fonts.cjs /tmp/r6-core/SceneProgramCore.js ../generated/remotion-props.json
+          node - <<'JS'
+          const assert=require('node:assert/strict');
+          const fs=require('node:fs');
+          const b=JSON.parse(fs.readFileSync('../generated/remotion-props.json','utf8')).bundle;
+          require('/tmp/r6-core/SceneProgramCore.js').assertSafeBundle(b);
+          const text=b.clips.flatMap(c=>c.layers.filter(l=>l.kind==='text'));
+          assert.equal(text.length,4);
+          assert.ok(text.every(l=>l.font_profile==='noto-cjk-tc-v1' && !l.text.includes('\n')));
+          console.log('R6_TS_EXPLICIT_LAYOUT PASS | 4 source-grounded individual text layers');
+          JS
           npm run typecheck
+          python ../scripts/evedirector_remotion_bridge.py export \
+            --plan ../examples/native-video/r5-multilingual.json \
+            --source ../examples/native-video/source/r5-multilingual.md \
+            --props ../generated/r5-legacy-props.json --receipt ../generated/r5-legacy-receipt.json
+          node tests/test_r5_fonts.cjs /tmp/r6-core/SceneProgramCore.js ../generated/r5-legacy-props.json
           python ../scripts/evedirector_remotion_bridge.py export \
             --plan ../examples/native-video/program.json \
             --source ../examples/native-video/source/README.md \
