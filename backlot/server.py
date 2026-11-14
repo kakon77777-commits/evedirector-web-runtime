@@ -20,7 +20,6 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from backlot.agent_review import router as agent_review_router
-from backlot.programmatic_review import router as programmatic_review_router
 from backlot.state import PROJECTS_DIR, REPO_ROOT, list_projects, load_board_state, summarize_project
 
 UI_DIR = Path(__file__).resolve().parent / "ui"
@@ -154,8 +153,10 @@ async def _watch_projects() -> None:
 def create_app() -> FastAPI:
     app = FastAPI(title="Backlot", docs_url=None, redoc_url=None)
     app.include_router(agent_review_router)
-    # R2 never inherits L3 write endpoints; register read-only preview explicitly.
-    app.include_router(programmatic_review_router)
+    # Resolve the router at app construction, not while backlot's package
+    # extension modules may still be initializing (cyclic-import startup).
+    from backlot import programmatic_review as preview_api
+    app.include_router(preview_api.router)
 
     @app.on_event("startup")
     async def _startup() -> None:
