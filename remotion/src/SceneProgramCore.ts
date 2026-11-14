@@ -9,7 +9,7 @@ type Common = {
 };
 export type Layer =
   | (Common & {kind: 'rect' | 'ellipse'; width: number; height: number})
-  | (Common & {kind: 'text'; text: string; font_size: number});
+  | (Common & {kind: 'text'; text: string; font_size: number; font_profile?: 'dejavu-ascii-v1' | 'noto-cjk-tc-v1'});
 export type SourceAnchor = {
   source_contains: string; line_start: number; line_end: number;
   logical_line_sha256: string;
@@ -117,7 +117,7 @@ export function assertSafeBundle(input: unknown): asserts input is Bundle {
       const geom = l.kind === 'rect' || l.kind === 'ellipse';
       if (!geom && l.kind !== 'text') throw new Error('R1 layer kind invalid');
       exact(l, ['id','kind','x','y','fill', ...(geom ? ['width','height'] : ['text','font_size'])],
-        ['opacity','keyframes']);
+        ['opacity','keyframes', ...(geom ? [] : ['font_profile'])]);
       if (typeof l.id !== 'string' || !SLUG.test(l.id) || layerIds.has(l.id) ||
           !finite(l.x,-3*(input.width as number),3*(input.width as number)) ||
           !finite(l.y,-3*(input.height as number),3*(input.height as number)) ||
@@ -131,6 +131,27 @@ export function assertSafeBundle(input: unknown): asserts input is Bundle {
       } else if (typeof l.text !== 'string' || l.text.length < 1 || l.text.length > 240 ||
                  !integer(l.font_size,8,160)) {
         throw new Error('R1 text invalid');
+      } else if (!geom) {
+        if (l.font_profile !== undefined && !['dejavu-ascii-v1','noto-cjk-tc-v1'].includes(l.font_profile as string)) {
+          throw new Error('R5 text font_profile invalid');
+        }
+        const text = l.text as string;
+        if ([...text].some(ch => {
+          const cp = ch.codePointAt(0)!;
+          return (cp < 32 && ch !== '\n') || (cp >= 0xd800 && cp <= 0xdfff) ||
+            [0x200b,0x200c,0x200d,0x2060,0xfeff,0x202a,0x202b,0x202c,0x202d,0x202e].includes(cp);
+        })) throw new Error('R5 text control/format characters invalid');
+        if ([...text].some(ch => ch.codePointAt(0)! > 127) && l.font_profile !== 'noto-cjk-tc-v1') {
+          throw new Error('R5 non-ASCII text must have CJK profile');
+        }
+        if (text.includes('\n') && l.font_profile !== 'noto-cjk-tc-v1') {
+          throw new Error('R5 multiline requires CJK profile');
+        }
+        const lines = text.split('\n');
+        if (l.font_profile === 'noto-cjk-tc-v1' &&
+            (lines.length > 2 || lines.some(line => !line.trim() || line.length > 28))) {
+          throw new Error('R5 unsupported explicit CJK layout');
+        }
       }
       if (l.keyframes !== undefined) {
         if (!object(l.keyframes) || Object.keys(l.keyframes).some((k) => !TRACKS.includes(k as Track))) {

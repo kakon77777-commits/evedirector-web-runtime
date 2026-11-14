@@ -1,0 +1,87 @@
+{
+  "schema": "evedirector.programmatic_video.v0.1",
+  "title": "EveDirector R5 — 繁體中文與 AI 影片",
+  "style": "evemiss-native-demo",
+  "width": 640,
+  "height": 360,
+  "fps": 12,
+  "frames": 60,
+  "scenes": [
+    {
+      "id": "intro",
+      "start_frame": 0,
+      "end_frame": 30,
+      "source_contains": "繁體中文字形與英文需要可檢查的字型合約",
+      "layers": [
+        {
+          "id": "panel",
+          "kind": "rect",
+          "x": 30,
+          "y": 65,
+          "width": 585,
+          "height": 245,
+          "fill": "#16243D",
+          "opacity": 1
+        },
+        {
+          "id": "cn_title",
+          "kind": "text",
+          "x": 55,
+          "y": 94,
+          "text": "程式生成影片",
+          "font_size": 38,
+          "font_profile": "noto-cjk-tc-v1",
+          "fill": "text"
+        },
+        {
+          "id": "mixed",
+          "kind": "text",
+          "x": 55,
+          "y": 174,
+          "text": "AI 原生影片",
+          "font_size": 38,
+          "font_profile": "noto-cjk-tc-v1",
+          "fill": "accent"
+        }
+      ]
+    },
+    {
+      "id": "outro",
+      "start_frame": 30,
+      "end_frame": 60,
+      "source_contains": "字幕分行與中英混排必須保留來源證據",
+      "layers": [
+        {
+          "id": "panel2",
+          "kind": "rect",
+          "x": 30,
+          "y": 65,
+          "width": 585,
+          "height": 245,
+          "fill": "#16243D",
+          "opacity": 1
+        },
+        {
+          "id": "subtitle",
+          "kind": "text",
+          "x": 58,
+          "y": 110,
+          "text": "繁體字幕\nEnglish subtitle",
+          "font_size": 38,
+          "font_profile": "noto-cjk-tc-v1",
+          "fill": "text"
+        },
+        {
+          "id": "footer",
+          "kind": "text",
+          "x": 58,
+          "y": 220,
+          "text": "本地渲染 AI",
+          "font_size": 38,
+          "font_profile": "noto-cjk-tc-v1",
+          "fill": "primary"
+        }
+      ]
+    }
+  ]
+}

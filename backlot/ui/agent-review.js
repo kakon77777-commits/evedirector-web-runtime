@@ -379,6 +379,41 @@ function renderTextCheck(check) {
   );
 }
 
+function renderMultilingualCheck(check) {
+  const value = check || { status: "NOT_RUN" };
+  const rows = Array.isArray(value.checks) ? value.checks : [];
+  const font = value.font || {};
+  return el("section", { class: "visual-check" },
+    el("div", { class: "visual-check-head" },
+      el("div", {}, el("h4", {}, "R5 繁體中文／多語字形與字型契約"),
+        el("code", {}, value.status || "NOT_RUN")),
+      el("span", { class: "pill locked" }, "UNSIGNED · NO APPLY"),
+    ),
+    el("div", { class: "programmatic-metrics" },
+      metric("Sampled frames", value.sampled_frames != null ? `${value.sampled_frames}/${value.total_frames}` : "—"),
+      metric("Verified lines", value.covered_text_lines != null ? `${value.covered_text_lines}/${value.declared_text_lines}` : "—"),
+      metric("Failures", value.failed_samples ?? "—"),
+      metric("Inconclusive", value.unmeasured_samples ?? "—"),
+    ),
+    el("p", { class: "programmatic-disclaimer" },
+      `Font: ${font.family || "not measured"} · SHA-256: ${font.sha256 || "unavailable"}. ` +
+      "Only high-contrast, locally sampled glyph evidence is checked. This is NOT OCR, " +
+      "a semantic/complete typography proof, or permission to publish."),
+    rows.length ? el("details", { class: "visual-check-detail" },
+      el("summary", {}, `Inspect ${rows.length} line measurements`),
+      el("div", { class: "visual-check-rows" },
+        rows.filter((r) => r.status !== "PASS").slice(0, 80).map((r) =>
+          el("div", { class: `visual-check-row ${r.status === "PASS" ? "" : "failed"}` },
+            el("b", {}, `#${r.frame} · ${r.clip_id}/${r.layer_id} · line ${r.line+1}`),
+            el("span", {}, `${r.status}: ${r.reason || ""} · ink ${r.ink_ratio ?? "—"} · blank ${r.blank_ratio ?? "—"}`),
+          ),
+        ),
+      ),
+    ) : el("p", { class: "programmatic-disclaimer" },
+      "No R5 report is staged; NOT_RUN is never a PASS."),
+  );
+}
+
 function renderProgramDetail(detail) {
   const timing = detail.timing || {};
   const preview = detail.preview || {};
@@ -407,6 +442,7 @@ function renderProgramDetail(detail) {
     player,
     renderVisualCheck(detail.visual_check),
     renderTextCheck(detail.text_check),
+    renderMultilingualCheck(detail.multilingual_check),
     el("div", { class: "programmatic-metrics" },
       metric("Clips", (detail.scenes || []).length),
       metric("FPS", timing.fps),
