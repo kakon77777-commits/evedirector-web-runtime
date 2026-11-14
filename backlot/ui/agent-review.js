@@ -298,6 +298,47 @@ async function chooseProgram(candidateId) {
   render();
 }
 
+function renderVisualCheck(visual) {
+  const check = visual || { status: "NOT_RUN" };
+  const measured = Array.isArray(check.frame_checks) ? check.frame_checks : [];
+  const failures = measured.filter((row) => row.status !== "PASS");
+  const head = el("div", { class: "visual-check-head" },
+    el("div", {},
+      el("h4", {}, "R3 sampled visual geometry check"),
+      el("code", {}, check.status || "NOT_RUN"),
+    ),
+    el("span", { class: "pill locked" }, "UNSIGNED · NOT APPROVED"),
+  );
+  if (!measured.length) {
+    return el("section", { class: "visual-check" }, head,
+      el("p", { class: "programmatic-disclaimer" },
+        "No R3 frame measurements staged. Use the offline R3 CLI to verify the candidate."),
+    );
+  }
+  const errors = el("details", { class: "visual-check-detail" },
+    el("summary", {}, `Inspect ${measured.length} measured frames · ${failures.length} non-PASS`),
+    el("div", { class: "visual-check-rows" }, measured.map((row) =>
+      el("div", { class: `visual-check-row ${row.status === "PASS" ? "" : "failed"}` },
+        el("b", {}, `#${row.frame} · ${row.clip_id}`),
+        el("span", {}, `${row.status} · ${row.geometry_pixels} geometric pixels · ${row.outlier_pixels} outliers · MAE ${row.mean_channel_absolute_error}`),
+      ),
+    )),
+  );
+  return el("section", { class: "visual-check" }, head,
+    el("div", { class: "programmatic-metrics" },
+      metric("Sampled frames", `${check.sampled_frames}/${check.total_frames}`),
+      metric("Eligible pixels", check.eligible_pixels),
+      metric("Geometry pixels", check.geometry_pixels),
+      metric("Bad pixel ratio", `${(check.bad_pixel_fraction * 100).toFixed(2)}%`),
+    ),
+    el("p", { class: "programmatic-disclaimer" },
+      "PASS means only sampled flat-color geometry interiors matched within declared tolerances. " +
+      "Text glyphs, edge antialiasing, unsampled frames and audio are NOT verified. " +
+      "This is an unsigned local measurement, never an approval or proof of full visual equivalence."),
+    errors,
+  );
+}
+
 function renderProgramDetail(detail) {
   const timing = detail.timing || {};
   const preview = detail.preview || {};
@@ -324,6 +365,7 @@ function renderProgramDetail(detail) {
     el("p", { class: "programmatic-disclaimer" },
       "R0/R1 data replay checked. Source authenticity, visual equivalence, copyright and publishing approval are NOT attested. Existing L3 review actions do not apply to these clips."),
     player,
+    renderVisualCheck(detail.visual_check),
     el("div", { class: "programmatic-metrics" },
       metric("Clips", (detail.scenes || []).length),
       metric("FPS", timing.fps),
@@ -352,7 +394,7 @@ function renderProgrammatic() {
   const candidates = programIndexState?.candidates || [];
   return el("section", { class: "panel programmatic-panel" },
     el("div", { class: "panel-head" },
-      el("h2", {}, "Programmatic Video · R2"),
+      el("h2", {}, "Programmatic Video · R2/R3"),
       el("span", { class: "pill locked" }, "READ-ONLY PREVIEW")),
     programErrorText ? el("div", { class: "error" }, programErrorText) : null,
     el("div", { class: "programmatic-workspace" },
