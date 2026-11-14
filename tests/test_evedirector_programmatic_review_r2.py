@@ -222,6 +222,10 @@ def test_server_has_l4_and_r2_routes_without_apply(setup: dict):
     assert "/api/project/{project_id}/programmatic-review/{candidate_id}" in paths
     assert "/api/project/{project_id}/programmatic-review/{candidate_id}/media" in paths
     assert "/api/project/{project_id}/programmatic-review/{candidate_id}/apply" not in paths
+    deployed_paths = {r.path for r in server.app.routes if hasattr(r, "path")}
+    assert "/api/project/{project_id}/programmatic-review" in deployed_paths, (
+        "deployed FastAPI singleton must have the same R2 routes as create_app")
+
     with TestClient(app) as client:
         page = client.get("/p/review-demo/agent-review")
         assert page.status_code == 200
