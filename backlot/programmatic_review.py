@@ -24,6 +24,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 import evedirector_review_stage as stage  # noqa: E402
 import evedirector_remotion_bridge as bridge  # noqa: E402
+import evedirector_visual_probe as visual_r3  # noqa: E402
 
 router = APIRouter()
 READ_ONLY = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
@@ -122,6 +123,33 @@ def _detail(project_id: str, candidate_id: str) -> dict[str, Any]:
         })
     media_url = (f"/api/project/{project_id}/programmatic-review/{candidate_id}/media"
                  if item["video_path"] is not None else None)
+    try:
+        report = visual_r3.load_report(l4.PROJECTS_DIR, project_id, candidate_id, item)
+    except (visual_r3.VisualProbeError, stage.ReviewPackageError,
+            bridge.r0.ProgramError, OSError, ValueError, TypeError, KeyError) as exc:
+        raise HTTPException(status_code=409, detail="visual check record failed integrity check") from exc
+    visual_check = (
+        {
+            "status": report["status"],
+            "method": report["method"],
+            "sampled_frames": len(report["sampled_frames"]),
+            "total_frames": report["total_frames"],
+            "eligible_pixels": report["eligible_pixels"],
+            "geometry_pixels": report["geometry_pixels"],
+            "outlier_pixels": report["outlier_pixels"],
+            "bad_pixel_fraction": report["bad_pixel_fraction"],
+            "mean_channel_absolute_error": report["mean_channel_absolute_error"],
+            "frame_checks": report["frames"],
+            "coverage": report["coverage"],
+            "excluded": report["excluded"],
+            "unsigned_local_record": True,
+            "visual_equivalence_attested": False,
+            "approved_for_publish": False,
+        } if report is not None else {
+            "status": "NOT_RUN", "unsigned_local_record": True,
+            "visual_equivalence_attested": False, "approved_for_publish": False,
+        }
+    )
     return {
         "schema": "evedirector.programmatic_review_api.v0.1",
         "project_id": project_id,
@@ -158,6 +186,7 @@ def _detail(project_id: str, candidate_id: str) -> dict[str, Any]:
             "visual_equivalence_attested": False,
         },
         "scenes": scenes,
+        "visual_check": visual_check,
     }
 
 
