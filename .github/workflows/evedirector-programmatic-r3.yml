@@ -1,0 +1,198 @@
+name: EveDirector Programmatic R3 Sampled Visual Verification
+
+on:
+  push:
+    paths:
+      - '.github/workflows/evedirector-programmatic-r3.yml'
+      - 'scripts/evedirector_visual_probe.py'
+      - 'backlot/programmatic_review.py'
+      - 'backlot/ui/agent-review.js'
+      - 'backlot/ui/agent-review.css'
+      - 'tests/test_evedirector_visual_probe_r3.py'
+      - 'tests/test_evedirector_visual_review_api_r3.py'
+      - 'remotion/**'
+  pull_request:
+    paths:
+      - '.github/workflows/evedirector-programmatic-r3.yml'
+      - 'scripts/evedirector_visual_probe.py'
+      - 'backlot/programmatic_review.py'
+      - 'backlot/ui/agent-review.js'
+      - 'backlot/ui/agent-review.css'
+      - 'tests/test_evedirector_visual_probe_r3.py'
+      - 'tests/test_evedirector_visual_review_api_r3.py'
+      - 'remotion/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-r3:
+    name: R0-R3 source + real Remotion video + visual negative controls + L4
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install zero-key dependencies
+        run: |
+          python -m pip install -U pip
+          python -m pip install 'Pillow>=10' 'PyYAML>=6' 'fastapi>=0.110' 'uvicorn>=0.29' 'watchfiles>=0.21' 'pytest>=8' 'httpx>=0.27' 'pydantic>=2' 'jsonschema>=4' 'python-dotenv>=1' 'requests>=2'
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+      - name: R0 and R1 Python regressions
+        run: |
+          python -m unittest discover -s tests -p 'test_evedirector_programmatic.py' -v
+          python -m unittest discover -s tests -p 'test_evedirector_remotion_bridge.py' -v
+      - name: R2 L4 plus R3 security and probe contracts
+        run: |
+          python -m pytest -q \
+            tests/test_backlot_agent_review.py \
+            tests/test_evedirector_programmatic_review_r2.py \
+            tests/test_evedirector_visual_probe_r3.py \
+            tests/test_evedirector_visual_review_api_r3.py
+      - name: Frontend syntax
+        run: node --input-type=module --check < backlot/ui/agent-review.js
+      - name: Replay R1 source and interpolation reference
+        run: |
+          python scripts/evedirector_remotion_bridge.py export \
+            --plan examples/native-video/program.json \
+            --source examples/native-video/source/README.md \
+            --props generated/remotion-props.json \
+            --receipt generated/remotion-bridge-receipt.json
+          python scripts/evedirector_remotion_bridge.py verify \
+            --plan examples/native-video/program.json \
+            --source examples/native-video/source/README.md \
+            --props generated/remotion-props.json \
+            --receipt generated/remotion-bridge-receipt.json
+          python scripts/evedirector_r1_vectors.py
+      - name: Install Remotion
+        working-directory: remotion
+        run: npm install --no-audit --no-fund
+      - name: TypeScript R1 cross backend vectors and typecheck
+        working-directory: remotion
+        run: |
+          ./node_modules/.bin/tsc --target ES2020 --module commonjs --strict \
+            --skipLibCheck --outDir /tmp/evedirector-r3-core src/SceneProgramCore.ts
+          node tests/test_core.cjs /tmp/evedirector-r3-core/SceneProgramCore.js \
+            ../generated/remotion-props.json ../generated/interpolation_vectors.json
+          npm run typecheck
+      - name: Actual Remotion candidate MP4
+        working-directory: remotion
+        run: |
+          ./node_modules/.bin/remotion browser ensure
+          npm run render
+      - name: R2 sealed source candidate and R3 positive sampled check
+        run: |
+          mkdir -p projects/r3-ci-demo
+          python scripts/evedirector_review_stage.py stage \
+            --project-id r3-ci-demo --candidate-id ci_r3 \
+            --plan examples/native-video/program.json \
+            --source examples/native-video/source/README.md \
+            --styles-dir styles --video remotion/out/native-r1.mp4
+          python scripts/evedirector_visual_probe.py check \
+            --project-id r3-ci-demo --candidate-id ci_r3
+          python scripts/evedirector_visual_probe.py verify \
+            --project-id r3-ci-demo --candidate-id ci_r3
+      - name: Black-video and frozen-frame negative controls
+        run: |
+          ffmpeg -nostdin -hide_banner -loglevel error -y -f lavfi \
+            -i 'color=c=black:s=640x360:r=12' -frames:v 60 \
+            -c:v libx264 -pix_fmt yuv420p /tmp/r3-black.mp4
+          ffmpeg -nostdin -hide_banner -loglevel error -y -i remotion/out/native-r1.mp4 \
+            -vf 'select=eq(n\,15)' -frames:v 1 /tmp/r3-still.png
+          ffmpeg -nostdin -hide_banner -loglevel error -y -loop 1 -framerate 12 \
+            -i /tmp/r3-still.png -frames:v 60 -c:v libx264 -pix_fmt yuv420p /tmp/r3-frozen.mp4
+          python scripts/evedirector_review_stage.py stage \
+            --project-id r3-ci-demo --candidate-id ci_black \
+            --plan examples/native-video/program.json \
+            --source examples/native-video/source/README.md \
+            --styles-dir styles --video /tmp/r3-black.mp4
+          python scripts/evedirector_review_stage.py stage \
+            --project-id r3-ci-demo --candidate-id ci_frozen \
+            --plan examples/native-video/program.json \
+            --source examples/native-video/source/README.md \
+            --styles-dir styles --video /tmp/r3-frozen.mp4
+          python - <<'PY'
+          from pathlib import Path
+          from scripts import evedirector_visual_probe as visual
+          for candidate in ('ci_black', 'ci_frozen'):
+              args=['--projects-dir', 'projects', '--project-id', 'r3-ci-demo',
+                    '--candidate-id', candidate]
+              assert visual.main(['check', *args]) == 3, candidate
+              assert visual.main(['verify', *args]) == 3, candidate
+          print('R3_NEGATIVE_CONTROLS: PASS | H264 black and frozen MP4 both fail geometry')
+          PY
+      - name: Read-only Backlot API shows PASS and FAIL without Apply
+        run: |
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from backlot.server import create_app
+          with TestClient(create_app()) as c:
+              root = '/api/project/r3-ci-demo/programmatic-review'
+              cases = {
+                  'ci_r3': 'PASS_SAMPLED_GEOMETRY',
+                  'ci_black': 'FAIL_SAMPLED_GEOMETRY',
+                  'ci_frozen': 'FAIL_SAMPLED_GEOMETRY',
+              }
+              for name, expected in cases.items():
+                  r=c.get(root+'/'+name)
+                  assert r.status_code == 200, (name,r.text)
+                  d=r.json()
+                  v=d['visual_check']
+                  assert v['status'] == expected, (name,v)
+                  assert v['visual_equivalence_attested'] is False
+                  assert v['approved_for_publish'] is False
+                  assert d['authority']['apply_supported'] is False
+                  assert c.get(root+'/'+name+'/media').status_code == 200
+                  assert c.post(root+'/'+name+'/apply',json={'confirmation':'APPLY '+name}).status_code == 404
+          print('R3_BACKLOT: PASS | sampled positive + two negatives; no Apply route')
+          PY
+      - name: Upload R0-R3 UTF-8 source, MP4 and visual probe receipts (candidate only)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evedirector-r3-sampled-visual-integration-kit
+          path: |
+            LICENSE
+            README.md
+            docs/UPSTREAM_README.md
+            docs/EVEDIRECTOR_PROGRAMMATIC_VIDEO_R0_2026-11-15_zh-TW.md
+            docs/EVEDIRECTOR_PROGRAMMATIC_VIDEO_R1_2026-11-15_zh-TW.md
+            docs/EVEDIRECTOR_PROGRAMMATIC_VIDEO_R2_2026-11-15_zh-TW.md
+            docs/EVEDIRECTOR_PROGRAMMATIC_VIDEO_R3_2026-11-15_zh-TW.md
+            scripts/evedirector_programmatic.py
+            scripts/evedirector_remotion_bridge.py
+            scripts/evedirector_r1_vectors.py
+            scripts/evedirector_review_stage.py
+            scripts/evedirector_visual_probe.py
+            backlot/__init__.py
+            backlot/server.py
+            backlot/programmatic_review.py
+            backlot/ui/agent-review.css
+            backlot/ui/agent-review.js
+            backlot/ui/agent-review.html
+            backlot/ui/lib.js
+            remotion/README.md
+            remotion/package.json
+            remotion/tsconfig.json
+            remotion/src/**
+            remotion/tests/test_core.cjs
+            examples/native-video/**
+            styles/evemiss-native-demo.yaml
+            tests/test_evedirector_programmatic.py
+            tests/test_evedirector_remotion_bridge.py
+            tests/test_evedirector_programmatic_review_r2.py
+            tests/test_evedirector_visual_probe_r3.py
+            tests/test_evedirector_visual_review_api_r3.py
+            tests/test_backlot_agent_review.py
+            projects/r3-ci-demo/programmatic_candidates/ci_r3/**
+            projects/r3-ci-demo/programmatic_visual_checks/ci_r3/**
+            projects/r3-ci-demo/programmatic_visual_checks/ci_black/**
+            projects/r3-ci-demo/programmatic_visual_checks/ci_frozen/**
+          retention-days: 7
