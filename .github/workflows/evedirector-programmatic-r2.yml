@@ -118,13 +118,39 @@ jobs:
               assert c.post(root + '/ci_r2/apply', json={'confirmation':'APPLY ci_r2'}).status_code == 404
               print('R2: L4 read-only indexed source candidate with playable MP4; NO Apply route')
           PY
-      - name: Upload candidate package for review (not a publication release)
+      - name: Upload R0-R2 source + verified candidate as one ZIP (not a release)
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: evedirector-r2-l4-review-candidate
+          name: evedirector-r2-l4-integration-kit
           path: |
-            projects/r2-ci-demo/programmatic_candidates/ci_r2/manifest.json
-            projects/r2-ci-demo/programmatic_candidates/ci_r2/receipt.json
-            projects/r2-ci-demo/programmatic_candidates/ci_r2/preview.mp4
+            LICENSE
+            README.md
+            docs/UPSTREAM_README.md
+            docs/EVEDIRECTOR_PROGRAMMATIC_VIDEO_R0_2026-11-15_zh-TW.md
+            docs/EVEDIRECTOR_PROGRAMMATIC_VIDEO_R1_2026-11-15_zh-TW.md
+            docs/EVEDIRECTOR_PROGRAMMATIC_VIDEO_R2_2026-11-15_zh-TW.md
+            scripts/evedirector_programmatic.py
+            scripts/evedirector_remotion_bridge.py
+            scripts/evedirector_r1_vectors.py
+            scripts/evedirector_review_stage.py
+            backlot/__init__.py
+            backlot/server.py
+            backlot/programmatic_review.py
+            backlot/ui/agent-review.css
+            backlot/ui/agent-review.js
+            backlot/ui/agent-review.html
+            backlot/ui/lib.js
+            remotion/README.md
+            remotion/package.json
+            remotion/tsconfig.json
+            remotion/src/**
+            remotion/tests/test_core.cjs
+            examples/native-video/**
+            styles/evemiss-native-demo.yaml
+            tests/test_evedirector_programmatic.py
+            tests/test_evedirector_remotion_bridge.py
+            tests/test_evedirector_programmatic_review_r2.py
+            tests/test_backlot_agent_review.py
+            projects/r2-ci-demo/programmatic_candidates/ci_r2/**
           retention-days: 7
