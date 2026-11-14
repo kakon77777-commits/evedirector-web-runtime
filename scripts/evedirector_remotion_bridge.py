@@ -125,7 +125,7 @@ def build_receipt(props: dict[str, Any]) -> dict[str, Any]:
             for c in bundle["clips"]
         ],
         "render_status": "NOT_RENDERED_BY_REMOTION",
-        "L0_L6_status": "NOT_EVALUATED_NO_REPOSITORY_ACCESS",
+        "L0_L6_status": "NOT_EVALUATED_ISOLATED_R1",
     }
 
 
