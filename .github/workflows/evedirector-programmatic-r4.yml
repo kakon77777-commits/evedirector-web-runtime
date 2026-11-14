@@ -178,6 +178,10 @@ jobs:
           path: |
             LICENSE
             README.md
+            .github/workflows/evedirector-programmatic-r4.yml
+            generated/remotion-props.json
+            generated/remotion-bridge-receipt.json
+            generated/interpolation_vectors.json
             docs/UPSTREAM_README.md
             docs/EVEDIRECTOR_PROGRAMMATIC_VIDEO_R*_2026-11-15_zh-TW.md
             scripts/evedirector_programmatic.py
