@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.test_evedirector_compare_matrix_r8 import staged, P, MID
+from tests.test_evedirector_compare_matrix_r8 import staged, template, P, MID
 import backlot.agent_review as l4
 import backlot.server as server
 import backlot.programmatic_compare as r8_api
