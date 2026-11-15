@@ -21,7 +21,7 @@ def main(argv=None)->int:
     p=argparse.ArgumentParser()
     p.add_argument('--output',type=Path,required=True)
     args=p.parse_args(argv)
-    root=args.output
+    root=args.output.resolve()
     if root.exists():raise ValueError('CI example output must be new')
     root.mkdir(parents=True)
     input_root=ROOT/'examples/native-video'
