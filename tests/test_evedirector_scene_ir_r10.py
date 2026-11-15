@@ -92,6 +92,18 @@ class R10PluginCompositionTests(unittest.TestCase):
             with self.assertRaises((hub.PluginError,ir10.SceneIRError)):
                 ir10.validate_ir(obj,locked=False)
 
+    def test_relative_plugin_output_root_supports_external_cli_cwd(self):
+        # Regression: R9 external CLI receives a rooted path even though
+        # the caller supplied a relative output directory.
+        with tempfile.TemporaryDirectory() as root:
+            request=copy.deepcopy(hub.json_read(EVOE_REQUEST,hub.MAX_REQUEST))
+            request['candidate_id']='relative_evoe_case'
+            output=Path(os.path.relpath(Path(root)/'run-root',Path.cwd()))
+            receipt=hub.run(request,SOURCE,output,evoe_root=self.mock,allow_external=True)
+            self.assertEqual(receipt['result']['frame_count'],60)
+            self.assertEqual(hub.verify(Path(root)/'run-root'/'relative_evoe_case')['status'],
+                             'PASS_BOUNDED_REPLAY')
+
     def test_unauthorized_evoe_is_never_implicitly_executed(self):
         req=hub.json_read(EVOE_REQUEST,hub.MAX_REQUEST)
         with tempfile.TemporaryDirectory() as base:
