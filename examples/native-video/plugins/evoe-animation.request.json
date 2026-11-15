@@ -1,0 +1,7 @@
+{
+  "schema":"evedirector.plugin_request.v1",
+  "candidate_id":"evoe_geometry_demo_r9",
+  "plugin_id":"evoe",
+  "operation":"animate_frames",
+  "inputs":{"scene":"plugins/evoe-demo.scene.json","size":64,"frame_count":12,"fps":12,"samples":2}
+}

@@ -1,0 +1,7 @@
+{
+  "schema":"evedirector.plugin_request.v1",
+  "candidate_id":"native_demo_r9",
+  "plugin_id":"native-r0",
+  "operation":"render_video",
+  "inputs":{"plan":"program.json","source":"source/README.md"}
+}

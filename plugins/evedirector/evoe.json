@@ -1,0 +1,10 @@
+{
+  "schema": "evedirector.plugin_manifest.v1",
+  "plugin_id": "evoe",
+  "version": "0.1.0",
+  "title": "EVOE continuous geometry and animation-frame producer",
+  "source": "Optional, separately installed EVOE repository (no source or font files bundled)",
+  "operations": ["animate_frames"],
+  "authority": {"canonical_write": false, "network": false, "publish": false, "request_only": true},
+  "status": "external_runtime_opt_in_required"
+}

@@ -108,6 +108,7 @@ function renderTopbar() {
     el("span", { class: `pill ${enabled ? "enabled" : "locked"}` },
       enabled ? "ACTIONS ENABLED" : "READ-ONLY"),
     el("a", { class: "back-link", href: `/p/${encodedProjectId}/programmatic-compare` }, "R8 Compare Variants"),
+    el("a", { class: "back-link", href: `/p/${encodedProjectId}/plugins` }, "AI Drawing Plugins"),
     el("a", { class: "back-link", href: `/p/${encodedProjectId}` }, "← Backlot Board"),
   );
 }

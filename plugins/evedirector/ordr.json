@@ -1,0 +1,10 @@
+{
+  "schema": "evedirector.plugin_manifest.v1",
+  "plugin_id": "ordr",
+  "version": "0.1.0",
+  "title": "ORDR bounded observer-relative spatial snapshot reader",
+  "source": "ORDR Core-to-Adapter Contract v1 (1.0.0), offline and read-only projection",
+  "operations": ["inspect_snapshot"],
+  "authority": {"canonical_write": false, "network": false, "publish": false, "request_only": true},
+  "status": "implemented_offline_snapshot_reader_not_engine"
+}

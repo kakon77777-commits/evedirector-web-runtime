@@ -1,0 +1,17 @@
+{
+  "contract_version":"1.0.0",
+  "core_state_schema_version":1,
+  "cursor":{"contract_version":"1.0.0","world_id":"world:synthetic-r9","state_fingerprint":28191012,"computation_frame":4},
+  "world_time":0.25,
+  "observer":null,
+  "reference_observer":null,
+  "constraints":null,
+  "regions":[
+    {"address":{"space":"space:root","x":0,"y":0,"z":0,"lod":0},
+     "materialized":{"status":"synthetic-only-fixture"},"latent":null,"frontier":false,
+     "demand":null,"pending_request":null,"generated":null,"conflicts":[],"layers":[],"samples":[],"provenance":null},
+    {"address":{"space":"space:root","x":1,"y":0,"z":0,"lod":0},
+     "materialized":null,"latent":{"status":"synthetic-only-fixture"},"frontier":true,
+     "demand":null,"pending_request":null,"generated":null,"conflicts":[],"layers":[],"samples":[],"provenance":null}
+  ]
+}
