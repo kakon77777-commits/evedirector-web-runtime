@@ -414,6 +414,40 @@ function renderMultilingualCheck(check) {
   );
 }
 
+function renderLayoutCheck(check) {
+  const v = check || { status: "NOT_RUN" };
+  const rows = Array.isArray(v.lines) ? v.lines : [];
+  const area = v.safe_area || {};
+  const font = v.font || {};
+  return el("section", { class: "visual-check" },
+    el("div", { class: "visual-check-head" },
+      el("div", {}, el("h4", {}, "R6 安全字幕區／確定性換行／字型指紋"),
+        el("code", {}, v.status || "NOT_RUN")),
+      el("span", { class: "pill locked" }, "LAYOUT ONLY · NO APPLY"),
+    ),
+    el("div", { class: "programmatic-metrics" },
+      metric("Lines", v.line_count ?? "—"),
+      metric("Left / Right", area.left == null ? "—" : `${area.left} / ${area.right} px`),
+      metric("Top / Bottom", area.top == null ? "—" : `${area.top} / ${area.bottom} px`),
+      metric("Font", font.profile || "NOT PINNED"),
+    ),
+    el("p", { class: "programmatic-disclaimer" },
+      `Font fingerprint: ${font.sha256 || "unavailable"}. ` +
+      "A layout PASS certifies only pinned local metrics, explicit line placement and source-grounded text. " +
+      "R5 separately checks sampled video glyphs. Neither grants pixel-equivalence or publish approval."),
+    rows.length ? el("details", { class: "visual-check-detail" },
+      el("summary", {}, `Inspect ${rows.length} compiled source-grounded subtitle lines`),
+      el("div", { class: "visual-check-rows" }, rows.map((line) =>
+        el("div", { class: "visual-check-row" },
+          el("b", {}, `${line.scene_id} / ${line.layer_id} (${line.x}, ${line.y})`),
+          el("span", {}, `${line.text} · ${line.width_px} px · ${line.placement}`),
+        ),
+      )),
+    ) : el("p", { class: "programmatic-disclaimer" },
+      "No R6 layout report staged. NOT_RUN must never be treated as a PASS."),
+  );
+}
+
 function renderProgramDetail(detail) {
   const timing = detail.timing || {};
   const preview = detail.preview || {};
@@ -443,6 +477,7 @@ function renderProgramDetail(detail) {
     renderVisualCheck(detail.visual_check),
     renderTextCheck(detail.text_check),
     renderMultilingualCheck(detail.multilingual_check),
+    renderLayoutCheck(detail.layout_check),
     el("div", { class: "programmatic-metrics" },
       metric("Clips", (detail.scenes || []).length),
       metric("FPS", timing.fps),
