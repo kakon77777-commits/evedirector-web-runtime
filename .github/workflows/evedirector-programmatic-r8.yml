@@ -82,11 +82,11 @@ jobs:
           python scripts/evedirector_remotion_bridge.py export \
             --plan examples/native-video/program.json \
             --source examples/native-video/source/README.md \
-            --props generated/legacy-props.json --receipt generated/legacy-receipt.json
+            --props generated/remotion-props.json --receipt generated/remotion-bridge-receipt.json
           cd remotion
           mkdir -p /tmp/r8-core
           ./node_modules/.bin/tsc --target ES2020 --module commonjs --strict --skipLibCheck --outDir /tmp/r8-core src/SceneProgramCore.ts
-          node tests/test_core.cjs /tmp/r8-core/SceneProgramCore.js ../generated/legacy-props.json ../generated/interpolation_vectors.json
+          node tests/test_core.cjs /tmp/r8-core/SceneProgramCore.js ../generated/remotion-props.json ../generated/interpolation_vectors.json
           npm run typecheck
       - name: Ensure Chromium available
         working-directory: remotion
