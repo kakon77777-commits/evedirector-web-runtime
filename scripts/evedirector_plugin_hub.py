@@ -381,6 +381,9 @@ def run(req: dict[str, Any], input_root: Path, output_root: Path,
     output_root.mkdir(parents=True, exist_ok=True)
     if not output_root.is_dir():
         raise PluginError("output root must be a directory")
+    # A subprocess runs with cwd=stage. Its scene/output arguments must be
+    # absolute even when the user supplied a relative --output-root.
+    output_root = output_root.resolve()
     dest = output_root / req["candidate_id"]
     if dest.exists() or dest.is_symlink():
         raise PluginError("candidate already exists; append-only jobs cannot be overwritten")
