@@ -61,7 +61,7 @@ def test_determinism_and_no_base_mutation():
     (lambda q:q["font"].update(sha256="0"*64), "pinned font"),
     (lambda q:q["font"].update(face_index=0), "pinned font"),
     (lambda q:q["cues"].pop(), "one source-grounded cue"),
-    (lambda q:q["cues"][0].update(text="來源沒有的文字"),"exact scene source"),
+    (lambda q:q["cues"][0].update(text="來源完全沒有的字幕文字"),"exact scene source"),
     (lambda q:q["cues"][1].update(layer_id="../unsafe"),"one source-grounded cue"),
     (lambda q:q["cues"][0].update(text="😀😀😀😀😀😀😀😀"), "unsupported subtitle"),
 ])
