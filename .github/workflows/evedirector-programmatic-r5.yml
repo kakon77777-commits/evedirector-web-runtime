@@ -1,0 +1,206 @@
+name: EveDirector Programmatic Multilingual Text R5 (Candidate)
+
+on:
+  push:
+    paths:
+      - '.github/workflows/evedirector-programmatic-r5.yml'
+      - 'scripts/evedirector_programmatic.py'
+      - 'scripts/evedirector_multilang_probe_r5.py'
+      - 'backlot/programmatic_review.py'
+      - 'backlot/ui/agent-review.js'
+      - 'remotion/**'
+      - 'tests/test_evedirector_multilang_r5.py'
+      - 'tests/test_evedirector_multilang_review_api_r5.py'
+      - 'examples/native-video/**'
+  pull_request:
+    paths:
+      - '.github/workflows/evedirector-programmatic-r5.yml'
+      - 'scripts/evedirector_programmatic.py'
+      - 'scripts/evedirector_multilang_probe_r5.py'
+      - 'backlot/programmatic_review.py'
+      - 'backlot/ui/agent-review.js'
+      - 'remotion/**'
+      - 'tests/test_evedirector_multilang_r5.py'
+      - 'tests/test_evedirector_multilang_review_api_r5.py'
+      - 'examples/native-video/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  multilingual-r5:
+    name: R0–R5 regressions, live CJK Remotion, adversaries, read-only L4
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install offline render dependencies and system fonts
+        run: |
+          python -m pip install 'Pillow>=10' 'PyYAML>=6' 'fonttools>=4.55' 'fastapi>=0.110' 'uvicorn>=0.29' 'watchfiles>=0.21' 'pytest>=8' 'httpx>=0.27' 'pydantic>=2' 'jsonschema>=4' 'python-dotenv>=1' 'requests>=2'
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-noto-cjk fontconfig
+          fc-match -f '%{family} %{index}\n' 'Noto Sans CJK TC'
+      - name: R0/R1 Python and L4/R2/R3/R4/R5 regression suites
+        run: |
+          python -m unittest discover -s tests -p 'test_evedirector_programmatic.py' -v
+          python -m unittest discover -s tests -p 'test_evedirector_remotion_bridge.py' -v
+          python -m pytest -q \
+            tests/test_backlot_agent_review.py \
+            tests/test_evedirector_programmatic_review_r2.py \
+            tests/test_evedirector_visual_probe_r3.py \
+            tests/test_evedirector_visual_review_api_r3.py \
+            tests/test_evedirector_text_layers_r4.py \
+            tests/test_evedirector_text_review_api_r4.py \
+            tests/test_evedirector_multilang_r5.py \
+            tests/test_evedirector_multilang_review_api_r5.py
+      - name: Parse L4 JavaScript
+        run: node --input-type=module --check < backlot/ui/agent-review.js
+      - name: Source-grounded R5 props and old 175 interpolation vectors
+        run: |
+          python scripts/evedirector_remotion_bridge.py export \
+            --plan examples/native-video/r5-multilingual.json \
+            --source examples/native-video/source/r5-multilingual.md \
+            --props generated/remotion-props.json --receipt generated/remotion-bridge-receipt.json
+          python scripts/evedirector_remotion_bridge.py verify \
+            --plan examples/native-video/r5-multilingual.json \
+            --source examples/native-video/source/r5-multilingual.md \
+            --props generated/remotion-props.json --receipt generated/remotion-bridge-receipt.json
+          python scripts/evedirector_r1_vectors.py
+      - name: Install isolated Remotion toolchain
+        working-directory: remotion
+        run: npm install --no-audit --no-fund
+      - name: Typecheck strict font profile and independent R0/TS regression
+        working-directory: remotion
+        run: |
+          mkdir -p /tmp/r5-core
+          ./node_modules/.bin/tsc --target ES2020 --module commonjs --strict --skipLibCheck \
+            --outDir /tmp/r5-core src/SceneProgramCore.ts
+          node tests/test_r5_fonts.cjs /tmp/r5-core/SceneProgramCore.js ../generated/remotion-props.json
+          npm run typecheck
+          python ../scripts/evedirector_remotion_bridge.py export \
+            --plan ../examples/native-video/program.json \
+            --source ../examples/native-video/source/README.md \
+            --props ../generated/legacy-r1-props.json \
+            --receipt ../generated/legacy-r1-receipt.json
+          node tests/test_core.cjs /tmp/r5-core/SceneProgramCore.js \
+            ../generated/legacy-r1-props.json ../generated/interpolation_vectors.json
+      - name: Render real CJK candidate in Chromium/Remotion
+        working-directory: remotion
+        run: |
+          ./node_modules/.bin/remotion browser ensure
+          npm run render
+      - name: Stage + independently inspect and replay valid R5 multilingual video
+        run: |
+          mkdir -p projects/r5-ci-demo
+          python scripts/evedirector_review_stage.py stage \
+            --project-id r5-ci-demo --candidate-id ci_multilang \
+            --plan examples/native-video/r5-multilingual.json \
+            --source examples/native-video/source/r5-multilingual.md \
+            --styles-dir styles --video remotion/out/native-r1.mp4
+          python scripts/evedirector_multilang_probe_r5.py check \
+            --project-id r5-ci-demo --candidate-id ci_multilang
+          python scripts/evedirector_multilang_probe_r5.py verify \
+            --project-id r5-ci-demo --candidate-id ci_multilang
+      - name: Reproduce visually wrong same-spec adversaries (erased + wrong glyph)
+        run: |
+          ffmpeg -nostdin -v error -y -i remotion/out/native-r1.mp4 \
+            -vf "drawbox=x=54:y=98:w=254:h=49:color=0x16243D:t=fill:enable='between(n,20,28)'" \
+            -an -c:v libx264 -pix_fmt yuv420p /tmp/r5-erased.mp4
+          python scripts/evedirector_review_stage.py stage \
+            --project-id r5-ci-demo --candidate-id ci_erased \
+            --plan examples/native-video/r5-multilingual.json \
+            --source examples/native-video/source/r5-multilingual.md \
+            --styles-dir styles --video /tmp/r5-erased.mp4
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          plan=json.loads(Path('examples/native-video/r5-multilingual.json').read_text(encoding='utf-8'))
+          plan['scenes'][0]['layers'][1]['text']='測試生成影片'
+          Path('/tmp/r5-wrongtext.json').write_text(json.dumps(plan,ensure_ascii=False),encoding='utf-8')
+          PY
+          python scripts/evedirector_review_stage.py stage \
+            --project-id r5-ci-demo --candidate-id ci_wrongtext \
+            --plan /tmp/r5-wrongtext.json \
+            --source examples/native-video/source/r5-multilingual.md \
+            --styles-dir styles --video remotion/out/native-r1.mp4
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'scripts')
+          import evedirector_review_stage as stage
+          import evedirector_multilang_probe_r5 as r5
+          projects=Path('projects')
+          for name in ('ci_erased','ci_wrongtext'):
+              item=stage.load_package(projects,'r5-ci-demo',name)
+              report=r5.inspect(item,name)
+              assert report['status']=='FAIL_SAMPLED_MULTILINGUAL_TEXT',(name,report['status'])
+              r5.store(projects,'r5-ci-demo',name,report)
+              assert r5.load_report(projects,'r5-ci-demo',name,item)==report
+              print('R5_ADVERSARY',name,report['status'],report['failed_samples'])
+          PY
+      - name: Backlot L4 GET detail, correct status, no Apply
+        run: |
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from backlot.server import create_app
+          with TestClient(create_app()) as c:
+              base='/api/project/r5-ci-demo/programmatic-review/'
+              for name,expected in [('ci_multilang','PASS_SAMPLED_MULTILINGUAL_TEXT'),
+                                    ('ci_erased','FAIL_SAMPLED_MULTILINGUAL_TEXT'),
+                                    ('ci_wrongtext','FAIL_SAMPLED_MULTILINGUAL_TEXT')]:
+                  response=c.get(base+name)
+                  assert response.status_code==200,(name,response.text)
+                  d=response.json()
+                  r=d['multilingual_check']
+                  assert r['status']==expected,(name,r['status'])
+                  assert r['approved_for_publish'] is False
+                  assert r['font']['font_file_embedded'] is False
+                  assert d['authority']['apply_supported'] is False
+                  assert c.post(base+name+'/apply',json={'confirmation':'APPLY '+name}).status_code==404
+                  print('R5_L4',name,expected)
+          PY
+      - name: Upload code, UTF-8 source and candidate MP4 without fonts (not release)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evedirector-r5-multilang-candidate-kit
+          retention-days: 7
+          path: |
+            LICENSE
+            README.md
+            docs/UPSTREAM_README.md
+            docs/EVEDIRECTOR_PROGRAMMATIC_VIDEO_R*_2026-11-15_zh-TW.md
+            scripts/evedirector_programmatic.py
+            scripts/evedirector_remotion_bridge.py
+            scripts/evedirector_r1_vectors.py
+            scripts/evedirector_review_stage.py
+            scripts/evedirector_visual_probe.py
+            scripts/evedirector_text_layers_r4.py
+            scripts/evedirector_multilang_probe_r5.py
+            backlot/programmatic_review.py
+            backlot/server.py
+            backlot/ui/agent-review.js
+            backlot/ui/agent-review.css
+            backlot/ui/agent-review.html
+            remotion/README.md
+            remotion/package.json
+            remotion/tsconfig.json
+            remotion/src/**
+            remotion/tests/test_core.cjs
+            remotion/tests/test_r5_fonts.cjs
+            tests/test_evedirector_*.py
+            examples/native-video/**
+            styles/evemiss-native-demo.yaml
+            generated/remotion-props.json
+            generated/remotion-bridge-receipt.json
+            generated/legacy-r1-props.json
+            generated/interpolation_vectors.json
+            projects/r5-ci-demo/programmatic_candidates/**
+            projects/r5-ci-demo/programmatic_multilang_checks/**

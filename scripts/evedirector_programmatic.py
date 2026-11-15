@@ -27,7 +27,7 @@ COLORS = frozenset({"background", "primary", "accent", "text", "muted"})
 GEOMETRY = {"rect": {"width", "height"}, "ellipse": {"width", "height"}, "text": {"text", "font_size"}}
 PLAN_KEYS = {"schema", "title", "style", "width", "height", "fps", "frames", "scenes"}
 SCENE_KEYS = {"id", "start_frame", "end_frame", "source_contains", "layers"}
-LAYER_KEYS = {"id", "kind", "x", "y", "fill", "opacity", "width", "height", "text", "font_size", "keyframes"}
+LAYER_KEYS = {"id", "kind", "x", "y", "fill", "opacity", "width", "height", "text", "font_size", "font_profile", "keyframes"}
 
 
 class ProgramError(ValueError):
@@ -165,6 +165,8 @@ def validate(plan: dict[str, Any], source: bytes, styles_dir: Path) -> dict[str,
                 raise ProgramError(f"unknown render primitive: {kind!r}")
             expected = GEOMETRY[kind]
             extra = {"width", "height", "text", "font_size"} - expected
+            if kind != "text":
+                extra.add("font_profile")
             if any(k in layer for k in extra) or any(k not in layer for k in expected):
                 raise ProgramError(f"layer {lid} has incompatible fields for {kind}")
             for axis, hi in (("x", width * 3), ("y", height * 3)):
@@ -178,6 +180,24 @@ def validate(plan: dict[str, Any], source: bytes, styles_dir: Path) -> dict[str,
                 if not isinstance(layer["text"], str) or not 1 <= len(layer["text"]) <= 240:
                     raise ProgramError(f"{lid}.text must contain 1..240 characters")
                 _int(layer["font_size"], 8, 160, f"{lid}.font_size")
+                # R5 is opt-in. Legacy ASCII scenes retain their exact contract.
+                # CJK may never use an implicit OS fallback font.
+                profile = layer.get("font_profile")
+                if profile not in (None, "dejavu-ascii-v1", "noto-cjk-tc-v1"):
+                    raise ProgramError(f"{lid}.font_profile is not allow-listed")
+                text = layer["text"]
+                if any(0xD800 <= ord(ch) <= 0xDFFF or
+                       (ord(ch) < 32 and ch != "\n") or
+                       ch in "\u200b\u200c\u200d\u2060\ufeff\u202a\u202b\u202c\u202d\u202e" for ch in text):
+                    raise ProgramError(f"{lid}.text contains forbidden control/format characters")
+                if not text.isascii() and profile != "noto-cjk-tc-v1":
+                    raise ProgramError(f"{lid}.text requires explicit CJK font_profile")
+                if profile != "noto-cjk-tc-v1" and "\n" in text:
+                    raise ProgramError(f"{lid}.text multiline requires explicit CJK profile")
+                if profile == "noto-cjk-tc-v1" and (
+                    len(text.split("\n")) > 2 or
+                    any(not line.strip() or len(line) > 28 for line in text.split("\n"))):
+                    raise ProgramError(f"{lid}.text unsupported CJK line layout")
             tracks = layer.get("keyframes", {})
             if not isinstance(tracks, dict) or set(tracks) - {"x", "y", "opacity", "width", "height"}:
                 raise ProgramError(f"{lid}.keyframes has unknown tracks")

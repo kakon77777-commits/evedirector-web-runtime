@@ -22,7 +22,12 @@ const ClipFrame: React.FC<{clip: Clip; palette: Palette}> = ({clip, palette}) =>
       if (layer.kind === 'text') {
         return <div key={layer.id} style={{...common, color: fill,
           fontSize: layer.font_size, whiteSpace: 'pre-wrap', lineHeight: 1.2,
-          fontFamily: '"DejaVu Sans", Arial, sans-serif'}}>{layer.text}</div>;
+          fontFamily: layer.font_profile === 'noto-cjk-tc-v1'
+            ? '"Noto Sans CJK TC", sans-serif'
+            : '"DejaVu Sans", Arial, sans-serif',
+          ...(layer.font_profile === 'noto-cjk-tc-v1'
+            ? {whiteSpace: 'pre' as const, wordBreak: 'normal' as const, overflowWrap: 'normal' as const}
+            : {})}}>{layer.text}</div>;
       }
       return <div key={layer.id} style={{...common, backgroundColor: fill,
         width: Math.round(evaluate(layer,'width',frame)),

@@ -26,6 +26,7 @@ import evedirector_review_stage as stage  # noqa: E402
 import evedirector_remotion_bridge as bridge  # noqa: E402
 import evedirector_visual_probe as visual_r3  # noqa: E402
 import evedirector_text_layers_r4 as text_r4  # noqa: E402
+import evedirector_multilang_probe_r5 as multilang_r5  # noqa: E402
 
 router = APIRouter()
 READ_ONLY = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
@@ -183,6 +184,34 @@ def _detail(project_id: str, candidate_id: str) -> dict[str, Any]:
             "visual_equivalence_attested": False, "approved_for_publish": False,
         }
     )
+    try:
+        multi_report = multilang_r5.load_report(l4.PROJECTS_DIR, project_id, candidate_id, item)
+    except (multilang_r5.MultilangProbeError, visual_r3.VisualProbeError,
+            stage.ReviewPackageError, bridge.r0.ProgramError,
+            OSError, ValueError, TypeError, KeyError) as exc:
+        raise HTTPException(status_code=409, detail="R5 multilingual check record failed integrity/replay") from exc
+    multilingual_check = (
+        {
+            "status": multi_report["status"],
+            "method": multi_report["method"],
+            "sampled_frames": len(multi_report["sampled_frames"]),
+            "total_frames": multi_report["total_frames"],
+            "declared_text_lines": multi_report["declared_text_lines"],
+            "covered_text_lines": multi_report["covered_text_lines"],
+            "unmeasured_samples": multi_report["unmeasured_samples"],
+            "failed_samples": multi_report["failed_samples"],
+            "font": multi_report["font"],
+            "checks": multi_report["checks"],
+            "scope": multi_report["scope"],
+            "excluded": multi_report["excluded"],
+            "unsigned_local_record": True,
+            "visual_equivalence_attested": False,
+            "approved_for_publish": False,
+        } if multi_report is not None else {
+            "status": "NOT_RUN", "unsigned_local_record": True,
+            "visual_equivalence_attested": False, "approved_for_publish": False,
+        }
+    )
     return {
         "schema": "evedirector.programmatic_review_api.v0.1",
         "project_id": project_id,
@@ -221,6 +250,7 @@ def _detail(project_id: str, candidate_id: str) -> dict[str, Any]:
         "scenes": scenes,
         "visual_check": visual_check,
         "text_check": text_check,
+        "multilingual_check": multilingual_check,
     }
 
 
