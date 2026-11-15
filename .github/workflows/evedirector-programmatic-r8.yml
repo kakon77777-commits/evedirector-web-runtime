@@ -1,0 +1,197 @@
+name: EveDirector R8 Multi-Platform Read-Only Compare (Candidate)
+on:
+  push:
+    paths:
+      - '.github/workflows/evedirector-programmatic-r8.yml'
+      - 'scripts/evedirector_compare_matrix_r8.py'
+      - 'backlot/programmatic_compare.py'
+      - 'backlot/server.py'
+      - 'backlot/ui/programmatic-compare.*'
+      - 'backlot/ui/agent-review.js'
+      - 'backlot/ui/director.js'
+      - 'tests/test_evedirector_compare_*_r8.py'
+      - 'examples/native-video/r8-compare-links.json'
+      - 'remotion/**'
+  pull_request:
+    paths:
+      - '.github/workflows/evedirector-programmatic-r8.yml'
+      - 'scripts/evedirector_compare_matrix_r8.py'
+      - 'backlot/programmatic_compare.py'
+      - 'backlot/server.py'
+      - 'backlot/ui/**'
+      - 'tests/test_evedirector_compare_*_r8.py'
+      - 'examples/native-video/r8-compare-links.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare-r8:
+    name: R0–R8 replay, three real Remotion videos, L4/L6 read-only compare
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install zero-key font and review environment
+        run: |
+          python -m pip install 'Pillow>=10' 'PyYAML>=6' 'fonttools>=4.55' 'fastapi>=0.110' 'uvicorn>=0.29' 'watchfiles>=0.21' 'pytest>=8' 'httpx>=0.27' 'pydantic>=2' 'jsonschema>=4' 'python-dotenv>=1' 'requests>=2'
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-noto-cjk fontconfig
+      - name: Legacy R0/R1 Python contracts
+        run: |
+          python -m unittest discover -s tests -p test_evedirector_programmatic.py -v
+          python -m unittest discover -s tests -p test_evedirector_remotion_bridge.py -v
+      - name: L4 and R2/R6/R7/R8 + L6 regressions including forged evidence
+        run: |
+          python -m pytest -q \
+            tests/test_backlot_agent_review.py \
+            tests/test_evedirector_programmatic_review_r2.py \
+            tests/test_evedirector_subtitle_layout_r6.py \
+            tests/test_evedirector_platform_layout_r7.py \
+            tests/test_evedirector_compare_matrix_r8.py \
+            tests/test_evedirector_compare_review_api_r8.py \
+            tests/test_evedirector_unified_workbench.py
+      - name: Browser JavaScript contract
+        run: |
+          node --input-type=module --check < backlot/ui/programmatic-compare.js
+          node --input-type=module --check < backlot/ui/agent-review.js
+          node --input-type=module --check < backlot/ui/director.js
+      - name: Compile replayable three-profile R7 matrix
+        run: |
+          python scripts/evedirector_platform_layout_r7.py compile \
+            --base examples/native-video/r6-layout-base.json \
+            --source examples/native-video/source/r6-subtitle-layout.md \
+            --request examples/native-video/r7-platform-layout-request.json \
+            --out generated/r7-variants
+          python scripts/evedirector_platform_layout_r7.py verify \
+            --base examples/native-video/r6-layout-base.json \
+            --source examples/native-video/source/r6-subtitle-layout.md \
+            --request examples/native-video/r7-platform-layout-request.json \
+            --out generated/r7-variants
+      - name: Remotion dependency install
+        working-directory: remotion
+        run: npm install --no-audit --no-fund
+      - name: Typecheck and verify 175 Python/TypeScript reference vectors
+        run: |
+          python scripts/evedirector_r1_vectors.py
+          python scripts/evedirector_remotion_bridge.py export \
+            --plan examples/native-video/program.json \
+            --source examples/native-video/source/README.md \
+            --props generated/remotion-props.json --receipt generated/remotion-bridge-receipt.json
+          cd remotion
+          mkdir -p /tmp/r8-core
+          ./node_modules/.bin/tsc --target ES2020 --module commonjs --strict --skipLibCheck --outDir /tmp/r8-core src/SceneProgramCore.ts
+          node tests/test_core.cjs /tmp/r8-core/SceneProgramCore.js ../generated/remotion-props.json ../generated/interpolation_vectors.json
+          npm run typecheck
+      - name: Ensure Chromium available
+        working-directory: remotion
+        run: ./node_modules/.bin/remotion browser ensure
+      - name: Real MP4 render, R2 seal and R6 stage for each profile
+        run: |
+          mkdir -p projects/r8-ci-demo generated/r8-rendered
+          for profile in square_social_v1 tiktok_vertical_v1 youtube_landscape_v1; do
+            python scripts/evedirector_remotion_bridge.py export --force \
+              --plan "generated/r7-variants/$profile.plan.json" \
+              --source examples/native-video/source/r6-subtitle-layout.md \
+              --props generated/remotion-props.json --receipt generated/remotion-bridge-receipt.json
+            python scripts/evedirector_remotion_bridge.py verify \
+              --plan "generated/r7-variants/$profile.plan.json" \
+              --source examples/native-video/source/r6-subtitle-layout.md \
+              --props generated/remotion-props.json --receipt generated/remotion-bridge-receipt.json
+            (cd remotion && npm run render)
+            cp remotion/out/native-r1.mp4 "generated/r8-rendered/$profile.mp4"
+            python scripts/evedirector_review_stage.py stage \
+              --project-id r8-ci-demo --candidate-id "r7_$profile" \
+              --plan "generated/r7-variants/$profile.plan.json" \
+              --source examples/native-video/source/r6-subtitle-layout.md \
+              --styles-dir styles --video "generated/r8-rendered/$profile.mp4"
+            python scripts/evedirector_subtitle_layout_r6.py stage \
+              --project-id r8-ci-demo --candidate-id "r7_$profile" \
+              --base "generated/r7-variants/$profile.base.json" \
+              --layout "generated/r7-variants/$profile.r6-request.json"
+            python scripts/evedirector_subtitle_layout_r6.py replay \
+              --project-id r8-ci-demo --candidate-id "r7_$profile"
+          done
+      - name: Store and replay R8 three-profile comparison capsule
+        run: |
+          python scripts/evedirector_compare_matrix_r8.py stage \
+            --project-id r8-ci-demo --matrix-id r8_three_profiles \
+            --base examples/native-video/r6-layout-base.json \
+            --source examples/native-video/source/r6-subtitle-layout.md \
+            --request examples/native-video/r7-platform-layout-request.json \
+            --links examples/native-video/r8-compare-links.json
+          python scripts/evedirector_compare_matrix_r8.py verify \
+            --project-id r8-ci-demo --matrix-id r8_three_profiles
+      - name: Real Backlot L4/L6 entry, three media, no Apply/Publish
+        run: |
+          python - <<'PY'
+          from fastapi.testclient import TestClient
+          from backlot.server import create_app
+          with TestClient(create_app()) as c:
+              root='/api/project/r8-ci-demo/programmatic-compare'
+              listed=c.get(root)
+              assert listed.status_code==200,listed.text
+              assert listed.json()['matrices'][0]['status']=='REPLAY_PASS'
+              d=c.get(root+'/r8_three_profiles')
+              assert d.status_code==200,d.text
+              d=d.json()
+              assert d['status']=='REPLAY_PASS' and d['sync']['frames']==60
+              assert d['authority']['apply_supported'] is False
+              assert d['authority']['publish_supported'] is False
+              assert len(d['variants'])==3
+              for v in d['variants']:
+                  assert v['checks']['layout_check']=='PASS_SAFE_LAYOUT_CONTRACT'
+                  assert v['checks']['visual_check']=='NOT_RUN'  # do not invent R3 PASS
+                  video=c.get(v['media_url'])
+                  assert video.status_code==200 and video.headers['content-type'].startswith('video/mp4')
+                  assert c.post(root+'/r8_three_profiles/apply',json={}).status_code==404
+                  print('R8_BROWSER_REVIEW',v['profile'],v['width'],v['height'],v['checks'])
+              page=c.get('/p/r8-ci-demo/programmatic-compare')
+              assert page.status_code==200 and 'programmatic-compare.js' in page.text
+              print('R8: VERIFIED multi-platform preview candidate, NOT approved or official UI certified')
+          PY
+      - name: Upload one R8 source and three-video integration kit (not a release)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evedirector-r8-multi-platform-review-kit
+          retention-days: 7
+          path: |
+            LICENSE
+            README.md
+            docs/UPSTREAM_README.md
+            docs/EVEDIRECTOR_PROGRAMMATIC_VIDEO_R*_2026-11-15_zh-TW.md
+            scripts/evedirector_programmatic.py
+            scripts/evedirector_remotion_bridge.py
+            scripts/evedirector_review_stage.py
+            scripts/evedirector_r1_vectors.py
+            scripts/evedirector_visual_probe.py
+            scripts/evedirector_text_layers_r4.py
+            scripts/evedirector_multilang_probe_r5.py
+            scripts/evedirector_subtitle_layout_r6.py
+            scripts/evedirector_platform_layout_r7.py
+            scripts/evedirector_compare_matrix_r8.py
+            backlot/programmatic_review.py
+            backlot/programmatic_compare.py
+            backlot/server.py
+            backlot/ui/agent-review.js
+            backlot/ui/director.js
+            backlot/ui/programmatic-compare.*
+            remotion/README.md
+            remotion/package.json
+            remotion/tsconfig.json
+            remotion/src/**
+            remotion/tests/**
+            tests/test_evedirector_*.py
+            examples/native-video/**
+            styles/evemiss-native-demo.yaml
+            generated/r7-variants/**
+            generated/r8-rendered/**
+            projects/r8-ci-demo/programmatic_candidates/**
+            projects/r8-ci-demo/programmatic_layout_checks/**
+            projects/r8-ci-demo/programmatic_compare_matrices/**

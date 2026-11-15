@@ -172,6 +172,17 @@ def create_app() -> FastAPI:
         from backlot import programmatic_review as preview_api
         return await preview_api.programmatic_review_media(project_id, candidate_id)
 
+    # R8 comparison is independently read-only; no POST, no L3 Apply surface.
+    @app.get("/api/project/{project_id}/programmatic-compare")
+    async def programmatic_compare_index(project_id: str) -> dict:
+        from backlot import programmatic_compare as compare_api
+        return await compare_api.compare_index(project_id)
+
+    @app.get("/api/project/{project_id}/programmatic-compare/{matrix_id}")
+    async def programmatic_compare_detail(project_id: str, matrix_id: str) -> dict:
+        from backlot import programmatic_compare as compare_api
+        return await compare_api.compare_detail(project_id, matrix_id)
+
     @app.on_event("startup")
     async def _startup() -> None:
         app.state.watch_task = asyncio.create_task(_watch_projects())
@@ -301,6 +312,11 @@ def create_app() -> FastAPI:
             "agent-review.html",
             ("agent-review.css", "agent-review.js"),
         )
+
+    @app.get("/p/{project_id}/programmatic-compare")
+    async def programmatic_compare_page(project_id: str) -> HTMLResponse:
+        _safe_project_dir(project_id)
+        return _ui_html("programmatic-compare.html", ("programmatic-compare.css", "programmatic-compare.js"))
 
     @app.get("/p/{project_id}")
     async def board_page(project_id: str) -> HTMLResponse:
