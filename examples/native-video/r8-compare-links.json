@@ -1,0 +1,8 @@
+{
+  "schema": "evedirector.compare_links.v0.1",
+  "links": [
+    {"profile": "square_social_v1", "candidate_id": "r7_square_social_v1"},
+    {"profile": "tiktok_vertical_v1", "candidate_id": "r7_tiktok_vertical_v1"},
+    {"profile": "youtube_landscape_v1", "candidate_id": "r7_youtube_landscape_v1"}
+  ]
+}
