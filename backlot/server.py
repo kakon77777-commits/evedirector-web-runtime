@@ -199,6 +199,13 @@ def create_app() -> FastAPI:
     async def health() -> dict:
         return {"ok": True, "app": "backlot"}
 
+    @app.get("/api/evedirector/plugins")
+    async def evedirector_plugins() -> dict:
+        # Catalog only: a browser never starts external code or writes a canonical run.
+        from scripts.evedirector_plugin_hub import catalog
+        return {"schema": "evedirector.plugin_catalog.v1", "plugins": catalog(),
+                "runtime_execution_allowed_by_api": False, "canonical_write": False}
+
     @app.get("/api/projects")
     async def projects() -> list:
         return await asyncio.to_thread(_cached_summaries)
@@ -312,6 +319,11 @@ def create_app() -> FastAPI:
             "agent-review.html",
             ("agent-review.css", "agent-review.js"),
         )
+
+    @app.get("/p/{project_id}/plugins")
+    async def evedirector_plugin_page(project_id: str) -> HTMLResponse:
+        _safe_project_dir(project_id)
+        return _ui_html("plugin-hub.html", ("plugin-hub.css", "plugin-hub.js"))
 
     @app.get("/p/{project_id}/programmatic-compare")
     async def programmatic_compare_page(project_id: str) -> HTMLResponse:

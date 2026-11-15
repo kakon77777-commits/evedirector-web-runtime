@@ -1,0 +1,11 @@
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;background:#090f18;color:#dbe7f1}
+*{box-sizing:border-box}body{margin:0}#app{max-width:1100px;margin:0 auto;padding:20px}
+.hero{display:flex;gap:20px;justify-content:space-between;align-items:center;flex-wrap:wrap;border-bottom:1px solid #263347;padding-bottom:18px}
+h1{font-size:24px;margin:0}h2{font-size:17px;margin:0}p{line-height:1.55;font-size:13px;color:#b4c3d2}
+a{color:#7bd9ec}.hero a{font-size:13px}.notice{border-left:3px solid #d5b66b;padding:12px;background:#141e2a}
+.plugins{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:18px}
+.plugin{min-width:0;padding:17px;background:#111b28;border:1px solid #2d4053;border-radius:14px}
+.plugin header{display:grid;gap:8px}.status{font-size:10px;color:#a4e1ba;overflow-wrap:anywhere}
+.capability{color:#70d8e7;font-weight:600}.code-list{display:grid;gap:10px}
+.command{display:grid;gap:9px}.command code{background:#080f18;border:1px solid #263347;padding:10px;border-radius:8px;color:#d7e8f4;font-size:11px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+button{justify-self:start;background:#1f3344;border:1px solid #4a6b82;color:#e4f3fc;padding:6px 12px;border-radius:7px;cursor:pointer}.hint{font-size:11px}.error{color:#ff9090}

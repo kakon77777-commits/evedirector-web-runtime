@@ -1,0 +1,10 @@
+{
+  "schema": "evoe.scene.v0.1",
+  "canvas": {"background":[0.05,0.07,0.11,1.0], "color_space":"linear-sRGB", "alpha_mode":"straight"},
+  "layers": [
+    {"id":"orbit","shape":{"kind":"circle","center":[0.45,0.5],"radius":0.20},"color":[0.25,0.8,0.91,0.96],
+     "motion":[{"t":0.0,"translate":[-0.23,0.0]},{"t":1.0,"translate":[0.23,0.0]}]},
+    {"id":"core","shape":{"kind":"rect","min":[0.18,0.62],"max":[0.82,0.70]},"color":[0.75,0.43,0.84,0.92]}
+  ],
+  "provenance":{"authoring_source":"EveDirector R9 original synthetic fixture","rights_state":"REVIEW_REQUIRED"}
+}
