@@ -19,6 +19,32 @@ const commands = {
     `${root} run --request examples/native-video/plugins/ordr-snapshot.request.json --input-root examples/native-video --output-root output/plugin-runs`
   ]
 };
+// R10 is a local candidate-only composition recipe, not a browser execution API.
+const sceneIR = "python scripts/evedirector_scene_ir_r10.py";
+const recipe = [
+  "# 1. Native R0 and ORDR: create separate candidate runs with R9 commands above",
+  `${root} run --request examples/native-video/plugins/r10-evoe-60.request.json --input-root examples/native-video --output-root output/plugin-runs --evoe-root <your-local-EVOE-directory> --allow-external`,
+  `${sceneIR} lock --draft examples/native-video/plugins/r10-composition.draft.json --input-root examples/native-video --runs-root output/plugin-runs --out output/r10.locked.json`,
+  `${sceneIR} compose --ir output/r10.locked.json --input-root examples/native-video --runs-root output/plugin-runs --output-root output/compositions`,
+  `${sceneIR} verify --candidate-dir output/compositions/r10_native_evoe_ordr_composite --input-root examples/native-video --runs-root output/plugin-runs`
+];
+function renderSceneIR() {
+  const steps = recipe.map((line) => {
+    const code = el("code", {}, line);
+    const btn = el("button", { type: "button", onclick: async () => {
+      try { await navigator.clipboard.writeText(line); btn.textContent = "Copied"; }
+      catch { btn.textContent = "Copy unavailable"; }
+    }}, "Copy");
+    return el("div", { class: "command" }, code, btn);
+  });
+  return el("section", { class: "plugin" },
+    el("h2", {}, "R10 · Typed Scene IR / Plugin Composer"),
+    el("p", {}, "AI 可指定 Native 基底、EVOE 幾何動畫圖層與 ORDR 唯讀空間證據，再以固定合成器產出候選 MP4。"),
+    el("p", { class: "hint" }, "先在受信任的本地端完成 R9 各外掛執行。EVOE 需要獨立安裝及明確授權；ORDR 僅提供證據，不自動繪製 3D。"),
+    el("div", { class: "code-list" }, ...steps),
+    el("p", { class: "hint" }, "Scene IR 必須鎖定來源與每筆外掛回執。命令僅供複製，不會從瀏覽器觸發執行、Apply 或 Publish。")
+  );
+}
 function panel(plugin) {
   const actions = commands[plugin.plugin_id] || [];
   return el("article", { class: "plugin" },
@@ -50,6 +76,7 @@ async function main() {
       throw new Error("Unrecognized capability registry");
     }
     node.append(el("div", { class: "plugins" }, ...data.plugins.map(panel)));
+    node.append(renderSceneIR());
   } catch (e) {
     node.append(el("p", { class: "error" }, `Plugin catalog unavailable: ${e.message || e}`));
   }
