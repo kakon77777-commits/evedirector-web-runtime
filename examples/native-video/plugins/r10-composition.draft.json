@@ -1,0 +1,45 @@
+{
+  "schema": "evedirector.scene_ir_draft.v1",
+  "candidate_id": "r10_native_evoe_ordr_composite",
+  "source": {
+    "path": "source/r10-plugin-composition.md"
+  },
+  "canvas": {
+    "width": 640,
+    "height": 360,
+    "fps": 12,
+    "frames": 60
+  },
+  "tracks": [
+    {
+      "track_id": "native_stage",
+      "plugin_id": "native-r0",
+      "role": "background_video",
+      "run_id": "native_demo_r9",
+      "source_line": 3,
+      "source_contains": "Native R0 draws the grounded base scene"
+    },
+    {
+      "track_id": "evoe_operator",
+      "plugin_id": "evoe",
+      "role": "overlay_video",
+      "run_id": "evoe_geometry_demo_r10",
+      "source_line": 4,
+      "source_contains": "EVOE provides geometry-derived motion frames",
+      "placement": {
+        "x": 350,
+        "y": 44,
+        "width": 220,
+        "height": 220
+      }
+    },
+    {
+      "track_id": "ordr_spatial",
+      "plugin_id": "ordr",
+      "role": "spatial_evidence",
+      "run_id": "ordr_snapshot_demo_r9",
+      "source_contains": "ORDR provides read-only spatial provenance",
+      "source_line": 5
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+name: EveDirector R10 Plugin Scene IR (Candidate)
+
+on:
+  push:
+    paths:
+      - '.github/workflows/evedirector-plugin-scene-ir-r10.yml'
+      - 'scripts/evedirector_scene_ir_r10.py'
+      - 'scripts/evedirector_plugin_hub.py'
+      - 'tests/test_evedirector_scene_ir_r10.py'
+      - 'tests/integration_r10_ci.py'
+      - 'tests/support/r10_mock_evoe.py'
+      - 'backlot/ui/plugin-hub.js'
+      - 'examples/native-video/plugins/r10-*'
+      - 'examples/native-video/source/r10-*'
+      - 'docs/EVEDIRECTOR_AI_NATIVE_SCENE_IR_R10_2026-11-15_zh-TW.md'
+  pull_request:
+    paths:
+      - '.github/workflows/evedirector-plugin-scene-ir-r10.yml'
+      - 'scripts/evedirector_scene_ir_r10.py'
+      - 'tests/test_evedirector_scene_ir_r10.py'
+      - 'tests/integration_r10_ci.py'
+      - 'tests/support/r10_mock_evoe.py'
+      - 'backlot/ui/plugin-hub.js'
+      - 'examples/native-video/plugins/r10-*'
+      - 'examples/native-video/source/r10-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scene-ir-r10:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    name: Native R0 + mock EVOE pixels + ORDR snapshot, locked Scene IR and H264
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install bounded local test dependencies
+        run: |
+          python -m pip install 'Pillow>=10' 'PyYAML>=6' 'fastapi>=0.110' 'uvicorn>=0.29' 'watchfiles>=0.21' 'httpx>=0.27' 'pytest>=8' 'pydantic>=2' 'jsonschema>=4' 'python-dotenv>=1' 'requests>=2'
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+      - name: R0 + R9 + R10 isolated Python contracts
+        run: |
+          python -m unittest discover -s tests -p 'test_evedirector_programmatic.py' -v
+          python -m unittest discover -s tests -p 'test_evedirector_plugin_*_r9.py' -v
+          python -m unittest discover -s tests -p 'test_evedirector_scene_ir_r10.py' -v
+      - name: Plugin Hub read-only JavaScript syntax
+        run: node --input-type=module --check < backlot/ui/plugin-hub.js
+      - name: "Real composite MP4 - Native renderer + mock EVOE protocol + ORDR evidence"
+        run: |
+          python tests/integration_r10_ci.py --output output/r10-ci
+          python scripts/evedirector_scene_ir_r10.py verify \
+            --candidate-dir output/r10-ci/composition/r10_native_evoe_ordr_composite \
+            --input-root examples/native-video \
+            --runs-root output/r10-ci/runs
+      - name: Verify exact 60-frame H264 output and no publication authority
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+          root=Path('output/r10-ci')
+          evidence=json.loads((root/'CI_R10_EVIDENCE.json').read_text(encoding='utf-8'))
+          assert evidence['status']=='PASS_CANDIDATE_ONLY'
+          assert evidence['mock_evoe_not_real_engine'] is True
+          assert evidence['ordr_spatial_visualization'] is False
+          path=root/'composition/r10_native_evoe_ordr_composite/candidate.mp4'
+          p=subprocess.run(['ffprobe','-v','error','-count_frames','-show_entries',
+                            'stream=codec_name,width,height,r_frame_rate,nb_read_frames',
+                            '-select_streams','v:0','-of','json',str(path)],
+                            check=True,capture_output=True,text=True)
+          s=json.loads(p.stdout)['streams'][0]
+          assert s['codec_name']=='h264'
+          assert (s['width'],s['height'])==(640,360)
+          assert s['r_frame_rate']=='12/1'
+          assert s['nb_read_frames']=='60'
+          r=json.loads((root/'composition/r10_native_evoe_ordr_composite/compose-receipt.json').read_text(encoding='utf-8'))
+          assert r['human_approved'] is False and r['canonical_write'] is False and r['published'] is False
+          print('R10_VIDEO: PASS (Native R0 real / EVOE CLI stub / ORDR synthetic metadata only)')
+          PY
+      - name: Upload UTF-8 source and bounded R10 candidate (never a release)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evedirector-r10-native-plugin-scene-ir-candidate
+          retention-days: 7
+          path: |
+            LICENSE
+            README.md
+            docs/EVEDIRECTOR_AI_NATIVE_SCENE_IR_R10_2026-11-15_zh-TW.md
+            scripts/evedirector_scene_ir_r10.py
+            scripts/evedirector_plugin_hub.py
+            scripts/evedirector_programmatic.py
+            plugins/evedirector/**
+            backlot/ui/plugin-hub.*
+            examples/native-video/plugins/**
+            examples/native-video/source/**
+            examples/native-video/program.json
+            styles/evemiss-native-demo.yaml
+            tests/test_evedirector_scene_ir_r10.py
+            tests/integration_r10_ci.py
+            tests/support/r10_mock_evoe.py
+            output/r10-ci/CI_R10_EVIDENCE.json
+            output/r10-ci/scene-ir.locked.json
+            output/r10-ci/runs/*/run-receipt.json
+            output/r10-ci/composition/**
