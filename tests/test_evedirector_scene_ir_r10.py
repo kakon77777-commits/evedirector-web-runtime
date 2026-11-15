@@ -96,10 +96,17 @@ class R10PluginCompositionTests(unittest.TestCase):
         # Regression: R9 external CLI receives a rooted path even though
         # the caller supplied a relative output directory.
         with tempfile.TemporaryDirectory() as root:
+            cwd_dir=Path(root)/'caller-cwd'
+            cwd_dir.mkdir()
             request=copy.deepcopy(hub.json_read(EVOE_REQUEST,hub.MAX_REQUEST))
             request['candidate_id']='relative_evoe_case'
-            output=Path(os.path.relpath(Path(root)/'run-root',Path.cwd()))
-            receipt=hub.run(request,SOURCE,output,evoe_root=self.mock,allow_external=True)
+            output=Path(os.path.relpath(Path(root)/'run-root',cwd_dir))
+            prev_cwd=Path.cwd()
+            os.chdir(cwd_dir)
+            try:
+                receipt=hub.run(request,SOURCE,output,evoe_root=self.mock,allow_external=True)
+            finally:
+                os.chdir(prev_cwd)
             self.assertEqual(receipt['result']['frame_count'],60)
             self.assertEqual(hub.verify(Path(root)/'run-root'/'relative_evoe_case')['status'],
                              'PASS_BOUNDED_REPLAY')

@@ -1,0 +1,118 @@
+name: EveDirector R11 Local Engine Handoff (Candidate)
+
+on:
+  push:
+    paths:
+      - '.github/workflows/evedirector-local-handoff-r11.yml'
+      - 'scripts/evedirector_local_handoff_r11.py'
+      - 'scripts/evedirector-r11-local.ps1'
+      - 'scripts/evedirector_plugin_hub.py'
+      - 'scripts/evedirector_scene_ir_r10.py'
+      - 'tests/test_evedirector_local_handoff_r11.py'
+      - 'backlot/ui/plugin-hub.js'
+  pull_request:
+    paths:
+      - '.github/workflows/evedirector-local-handoff-r11.yml'
+      - 'scripts/evedirector_local_handoff_r11.py'
+      - 'scripts/evedirector-r11-local.ps1'
+      - 'tests/test_evedirector_local_handoff_r11.py'
+      - 'backlot/ui/plugin-hub.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  r11-contract-only:
+    name: R0/R9/R10/R11 offline contract + explicit mock EVOE handoff
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install no-key local test dependencies
+        run: |
+          python -m pip install 'Pillow>=10' 'PyYAML>=6' 'fastapi>=0.110' 'uvicorn>=0.29' 'watchfiles>=0.21' 'httpx>=0.27' 'pytest>=8' 'pydantic>=2' 'jsonschema>=4' 'python-dotenv>=1' 'requests>=2'
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+      - name: R0 / R9 / R10 / R11 Python regressions
+        run: |
+          python -m unittest discover -s tests -p test_evedirector_programmatic.py -v
+          python -m unittest discover -s tests -p 'test_evedirector_plugin_*_r9.py' -v
+          python -m unittest discover -s tests -p test_evedirector_scene_ir_r10.py -v
+          python -m unittest discover -s tests -p test_evedirector_local_handoff_r11.py -v
+      - name: Check Plugin Hub read-only browser syntax
+        run: node --input-type=module --check < backlot/ui/plugin-hub.js
+      - name: Simulated EVOE transport for CI only (never private engine)
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'tests/support')
+          from r10_mock_evoe import install
+          root=install(Path('/tmp/r11-evoe-test-transport'))
+          for name in ('spec.py','render.py'):
+              (root/'src/evoe'/name).write_text('# MOCK ONLY NOT THE PRIVATE EVOE ENGINE\n',encoding='utf-8')
+          PY
+          python scripts/evedirector_local_handoff_r11.py doctor --evoe-root /tmp/r11-evoe-test-transport > /tmp/r11-doctor.json
+          python scripts/evedirector_local_handoff_r11.py stage \
+            --input-root examples/native-video --evoe-root /tmp/r11-evoe-test-transport \
+            --allow-local-engines --output-root output/r11-local-contract \
+            --candidate-id r11_ci_mock
+          python scripts/evedirector_local_handoff_r11.py verify \
+            --candidate-dir output/r11-local-contract/r11_ci_mock
+      - name: Verify H264 dimensions and deliberately unapproved engine authority
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+          root=Path('output/r11-local-contract/r11_ci_mock')
+          r=json.loads((root/'handoff-receipt.json').read_text(encoding='utf-8'))
+          assert r['schema']=='evedirector.local_integration_handoff.v1'
+          assert r['evoe_subprocess_executed'] is True
+          for field in ('evoe_engine_authenticity_independently_verified',
+                        'ordr_core_executed','ordr_source_authenticity_verified',
+                        'canonical_write','published','human_approved'):
+              assert r[field] is False,field
+          path=root/'composition/r10_native_evoe_ordr_composite/candidate.mp4'
+          output=json.loads(subprocess.check_output([
+              'ffprobe','-v','error','-count_frames','-select_streams','v:0',
+              '-show_entries','stream=codec_name,width,height,r_frame_rate,nb_read_frames',
+              '-of','json',str(path)],text=True))['streams'][0]
+          assert (output['codec_name'],output['width'],output['height'],
+                  output['r_frame_rate'],output['nb_read_frames'])==('h264',640,360,'12/1','60')
+          print('R11_MOCK_CONTRACT: PASS | REAL_EVOE_WINDOWS: NOT_RUN | ORDR_CORE_RENDER: NOT_RUN')
+          PY
+      - name: Upload UTF-8 source, local handoff guide and mock-only receipt
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evedirector-r11-local-engine-handoff-mock-ci
+          retention-days: 7
+          path: |
+            .github/workflows/evedirector-local-handoff-r11.yml
+            LICENSE
+            README.md
+            docs/EVEDIRECTOR_AI_NATIVE_SCENE_IR_R10_2026-11-15_zh-TW.md
+            docs/EVEDIRECTOR_AI_NATIVE_LOCAL_HANDOFF_R11_2026-11-15_zh-TW.md
+            scripts/evedirector_plugin_hub.py
+            scripts/evedirector_scene_ir_r10.py
+            scripts/evedirector_local_handoff_r11.py
+            scripts/evedirector-r11-local.ps1
+            scripts/evedirector_programmatic.py
+            plugins/evedirector/**
+            backlot/ui/plugin-hub.*
+            tests/test_evedirector_local_handoff_r11.py
+            tests/test_evedirector_scene_ir_r10.py
+            tests/support/r10_mock_evoe.py
+            examples/native-video/plugins/**
+            examples/native-video/source/**
+            examples/native-video/program.json
+            styles/evemiss-native-demo.yaml
+            output/r11-local-contract/r11_ci_mock/**

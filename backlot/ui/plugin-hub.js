@@ -45,6 +45,29 @@ function renderSceneIR() {
     el("p", { class: "hint" }, "Scene IR 必須鎖定來源與每筆外掛回執。命令僅供複製，不會從瀏覽器觸發執行、Apply 或 Publish。")
   );
 }
+// R11 commands are a local-only handoff; never execute from the browser.
+function renderLocalHandoff() {
+  const call = "python scripts/evedirector_local_handoff_r11.py";
+  const commands = [
+    call + " doctor --evoe-root <LOCAL_EVOE> --ordr-core-root <LOCAL_ORDR_CORE> --ordr-adapters-root <LOCAL_ORDR_ADAPTERS>",
+    call + " stage --evoe-root <LOCAL_EVOE> --ordr-core-root <LOCAL_ORDR_CORE> --ordr-adapters-root <LOCAL_ORDR_ADAPTERS> --allow-local-engines --output-root output/local-handoffs --candidate-id local_r11_01",
+    call + " verify --candidate-dir output/local-handoffs/local_r11_01",
+  ];
+  return el("section",{class:"plugin"},
+    el("h2",{},"R11 · EVOE / ORDR Local Engine Handoff"),
+    el("p",{},"將已明確授權的本地 EVOE 輸出與 ORDR v1 唯讀快照送入 R10 Scene IR。保留私有引擎來源指紋與合成回執，不複製引擎程式碼。"),
+    el("p",{class:"hint"},"預設 ORDR 為合成測試快照；R11 不會執行 ORDR Core。完成 R11 後先暫停新功能，交由本機環境驗收。"),
+    el("div",{class:"code-list"},...commands.map(line=>{
+      const b=el("button",{type:"button",onclick:async()=>{
+        try {await navigator.clipboard.writeText(line);b.textContent="Copied";}
+        catch {b.textContent="Copy unavailable";}
+      }},"Copy");
+      return el("div",{class:"command"},el("code",{},line),b);
+    })),
+    el("p",{class:"hint"},"這些命令只能複製、不能在網站執行；沒有新增 Apply、Publish 或 ORDR canonical write 權限。")
+  );
+}
+
 function panel(plugin) {
   const actions = commands[plugin.plugin_id] || [];
   return el("article", { class: "plugin" },
@@ -77,6 +100,7 @@ async function main() {
     }
     node.append(el("div", { class: "plugins" }, ...data.plugins.map(panel)));
     node.append(renderSceneIR());
+    node.append(renderLocalHandoff());
   } catch (e) {
     node.append(el("p", { class: "error" }, `Plugin catalog unavailable: ${e.message || e}`));
   }
