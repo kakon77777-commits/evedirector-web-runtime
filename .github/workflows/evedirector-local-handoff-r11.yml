@@ -96,6 +96,7 @@ jobs:
           name: evedirector-r11-local-engine-handoff-mock-ci
           retention-days: 7
           path: |
+            .github/workflows/evedirector-local-handoff-r11.yml
             LICENSE
             README.md
             docs/EVEDIRECTOR_AI_NATIVE_SCENE_IR_R10_2026-11-15_zh-TW.md
