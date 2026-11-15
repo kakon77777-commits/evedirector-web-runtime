@@ -339,6 +339,46 @@ function renderVisualCheck(visual) {
   );
 }
 
+function renderTextCheck(check) {
+  const value = check || { status: "NOT_RUN" };
+  const rows = Array.isArray(value.layer_checks) ? value.layer_checks : [];
+  const failed = rows.filter((row) => row.status === "FAIL");
+  const unmeasured = rows.filter((row) => row.status === "INCONCLUSIVE");
+  const heading = el("div", { class: "visual-check-head" },
+    el("div", {}, el("h4", {}, "R4 ASCII text strokes & occlusion"),
+      el("code", {}, value.status || "NOT_RUN")),
+    el("span", { class: "pill locked" }, "UNSIGNED · NO APPLY"),
+  );
+  if (!rows.length) {
+    return el("section", { class: "visual-check" }, heading,
+      el("p", { class: "programmatic-disclaimer" },
+        "R4 text check not staged. Missing check is never treated as a PASS."));
+  }
+  return el("section", { class: "visual-check" }, heading,
+    el("div", { class: "programmatic-metrics" },
+      metric("Measured frames", `${value.sampled_frames}/${value.total_frames}`),
+      metric("Text layers", `${value.covered_text_layers}/${value.declared_text_layers}`),
+      metric("Ink probes", value.ink_pixels),
+      metric("Outlier ink/blank", value.bad_pixels),
+    ),
+    el("p", { class: "programmatic-disclaimer" },
+      `${value.unmeasured_samples} samples excluded or inconclusive. ` +
+      `Opaque occlusion mismatches: ${value.occluded_bad_pixels}/${value.occluded_pixels}. ` +
+      "DejaVu Sans ASCII only; text wrapping, CJK, font substitutions, exact glyph identity and audio are not certified. " +
+      "Neither R3 nor R4 grants publication authority."),
+    el("details", { class: "visual-check-detail" },
+      el("summary", {}, `Review ${rows.length} text samples · ${failed.length} FAIL · ${unmeasured.length} unmeasured`),
+      el("div", { class: "visual-check-rows" }, rows.map((row) =>
+        el("div", { class: `visual-check-row ${row.status === "PASS" ? "" : "failed"}` },
+          el("b", {}, `#${row.frame} · ${row.clip_id}/${row.layer_id}`),
+          el("span", {}, `${row.status} · ${row.bad_pixels} outliers / ${row.ink_pixels} ink pixels · ` +
+            `${row.occluded_bad_pixels} bad occlusions${row.reason ? ` · ${row.reason}` : ""}`),
+        ),
+      )),
+    ),
+  );
+}
+
 function renderProgramDetail(detail) {
   const timing = detail.timing || {};
   const preview = detail.preview || {};
@@ -366,6 +406,7 @@ function renderProgramDetail(detail) {
       "R0/R1 data replay checked. Source authenticity, visual equivalence, copyright and publishing approval are NOT attested. Existing L3 review actions do not apply to these clips."),
     player,
     renderVisualCheck(detail.visual_check),
+    renderTextCheck(detail.text_check),
     el("div", { class: "programmatic-metrics" },
       metric("Clips", (detail.scenes || []).length),
       metric("FPS", timing.fps),

@@ -25,6 +25,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 import evedirector_review_stage as stage  # noqa: E402
 import evedirector_remotion_bridge as bridge  # noqa: E402
 import evedirector_visual_probe as visual_r3  # noqa: E402
+import evedirector_text_layers_r4 as text_r4  # noqa: E402
 
 router = APIRouter()
 READ_ONLY = {"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"}
@@ -150,6 +151,38 @@ def _detail(project_id: str, candidate_id: str) -> dict[str, Any]:
             "visual_equivalence_attested": False, "approved_for_publish": False,
         }
     )
+    try:
+        text_report = text_r4.load_report(l4.PROJECTS_DIR, project_id, candidate_id, item)
+    except (text_r4.TextProbeError, visual_r3.VisualProbeError,
+            stage.ReviewPackageError, bridge.r0.ProgramError,
+            OSError, ValueError, TypeError, KeyError) as exc:
+        raise HTTPException(status_code=409, detail="R4 text check record failed integrity/replay") from exc
+    text_check = (
+        {
+            "status": text_report["status"],
+            "method": text_report["method"],
+            "sampled_frames": len(text_report["sampled_frames"]),
+            "total_frames": text_report["total_frames"],
+            "declared_text_layers": text_report["declared_text_layers"],
+            "covered_text_layers": text_report["covered_text_layers"],
+            "text_samples": text_report["text_samples"],
+            "unmeasured_samples": text_report["unmeasured_samples"],
+            "ink_pixels": text_report["ink_pixels"],
+            "blank_pixels": text_report["blank_pixels"],
+            "occluded_pixels": text_report["occluded_pixels"],
+            "bad_pixels": text_report["bad_pixels"],
+            "occluded_bad_pixels": text_report["occluded_bad_pixels"],
+            "coverage": text_report["coverage"],
+            "excluded": text_report["excluded"],
+            "layer_checks": text_report["layers"],
+            "unsigned_local_record": True,
+            "visual_equivalence_attested": False,
+            "approved_for_publish": False,
+        } if text_report is not None else {
+            "status": "NOT_RUN", "unsigned_local_record": True,
+            "visual_equivalence_attested": False, "approved_for_publish": False,
+        }
+    )
     return {
         "schema": "evedirector.programmatic_review_api.v0.1",
         "project_id": project_id,
@@ -187,6 +220,7 @@ def _detail(project_id: str, candidate_id: str) -> dict[str, Any]:
         },
         "scenes": scenes,
         "visual_check": visual_check,
+        "text_check": text_check,
     }
 
 
