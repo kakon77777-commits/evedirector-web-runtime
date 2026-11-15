@@ -34,7 +34,9 @@ jobs:
             requirements-dev.txt
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg fonts-dejavu-core fonts-noto-cjk fontconfig
 
       - name: Install dependencies
         run: make install-dev
