@@ -1,0 +1,23 @@
+{
+  "schema": "evedirector.platform_layout_request.v0.1",
+  "profiles": ["square_social_v1", "tiktok_vertical_v1", "youtube_landscape_v1"],
+  "font": {
+    "profile": "noto-cjk-tc-v1",
+    "sha256": "b76b0433203017ca80401b2ee0dd69350349871c4b19d504c34dbdd80541690a",
+    "face_index": 3
+  },
+  "cues": [
+    {
+      "scene_id": "intro",
+      "layer_id": "subtitle",
+      "text": "繁體中文字幕 安全自動換行",
+      "placement": "middle"
+    },
+    {
+      "scene_id": "outro",
+      "layer_id": "subtitle",
+      "text": "subtitle 安全區",
+      "placement": "lower_third"
+    }
+  ]
+}
