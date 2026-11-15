@@ -53,7 +53,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_evedirector_scene_ir_r10.py' -v
       - name: Plugin Hub read-only JavaScript syntax
         run: node --input-type=module --check < backlot/ui/plugin-hub.js
-      - name: Real composite MP4: Native renderer + fake EVOE protocol + ORDR evidence
+      - name: "Real composite MP4 - Native renderer + mock EVOE protocol + ORDR evidence"
         run: |
           python tests/integration_r10_ci.py --output output/r10-ci
           python scripts/evedirector_scene_ir_r10.py verify \
